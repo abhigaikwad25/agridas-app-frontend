@@ -1,6 +1,6 @@
-import React from "react";
-import LoginScreen from "../../components/LoginScreen";
+import { View, Text } from "react-native";
+import HomeScreen from "@/components/HomeScreen";
 
-export default function App() {
-  return <LoginScreen />;
+export default function Home() {
+  return <HomeScreen />;
 }

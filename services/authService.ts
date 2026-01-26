@@ -6,7 +6,7 @@ export interface LoginPayload {
 }
 
 export const login = async (payload: LoginPayload) => {
-  const response = await fetc(`${API.BASE_URL}/auth/login`, {
+  const response = await fetch(`${API.BASE_URL}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -16,3 +16,24 @@ export const login = async (payload: LoginPayload) => {
 
   return response;
 };
+
+export interface RegisterPayload {
+  phoneno: string;
+  name: string;
+  password: string;
+  role: string;
+}
+
+export const register = async (payload: RegisterPayload) => {
+  const response = await fetch(`${API.BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return response;
+};
+
+

@@ -1,24 +1,28 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+import { Stack } from "expo-router";
+import { useEffect, useState } from "react";
+import { getToken } from "@/services/authStorage";
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const [checked, setChecked] = useState(false);
 
-  return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
-  );
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = await getToken();
+
+      if (token) {
+        // only once
+        setChecked(true);
+      } else {
+        setChecked(true);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  if (!checked) {
+    return null; // or loader
+  }
+
+  return <Stack screenOptions={{ headerShown: false }} />;
 }

@@ -8,14 +8,15 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { router } from "expo-router";
-import { login } from "@/services/authService";
-import { saveToken } from "@/services/authStorage";
+import { register } from "@/services/authService";
 
-export default function LoginScreen() {
+export default function RegisterScreen() {
+  const [name, setName] = useState("");
   const [phoneno, setPhoneno] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("Consumer");
   const [loading, setLoading] = useState(false);
-
+  
   const styles = StyleSheet.create({
     container: {
       flex: 1,
@@ -35,6 +36,13 @@ export default function LoginScreen() {
       fontSize: 16,
       fontWeight: "600",
     },
+    input: {
+      borderWidth: 1,
+      borderRadius: 10,
+      height: 45,
+      paddingHorizontal: 10,
+      marginBottom: 15,
+    },
     row: {
       flexDirection: "row",
       alignItems: "center",
@@ -43,17 +51,10 @@ export default function LoginScreen() {
       paddingHorizontal: 10,
       marginBottom: 15,
     },
-    input: {
+    phoneInput: {
       flex: 1,
       height: 45,
       marginLeft: 8,
-    },
-    inputFull: {
-      borderWidth: 1,
-      borderRadius: 10,
-      height: 45,
-      paddingHorizontal: 10,
-      marginBottom: 20,
     },
     btn: {
       backgroundColor: "#1e7f43",
@@ -65,55 +66,61 @@ export default function LoginScreen() {
       textAlign: "center",
       fontWeight: "600",
     },
-
-    registerText: {
-      textAlign: "center",
+    link: {
       marginTop: 15,
+      textAlign: "center",
       color: "#1e7f43",
-      fontWeight: "500",
     },
   });
 
 
-  const handleLogin = async () => {
-    if (!phoneno || !password) {
-      Alert.alert("Error", "Enter mobile number & password");
+  const handleRegister = async () => {
+    if (!name || !phoneno || !password) {
+      Alert.alert("Error", "All fields are required");
       return;
     }
 
     try {
       setLoading(true);
 
-      const response = await login({ phoneno, password });
+      const response = await register({
+        name,
+        phoneno,
+        password,
+        role,
+      });
+
       const data = await response.json();
 
       if (response.ok) {
-        // ✅ STORE ACCESS TOKEN HERE
-        await saveToken(data.accesstoken); // or data.token
-
-        // ✅ NAVIGATE TO HOME
-        router.replace("/(tabs)");
+        Alert.alert("Success", data.message);
+        router.replace("/");
       } else {
-        Alert.alert("Login failed", data.message || "Invalid credentials");
+        Alert.alert("Registration failed", data.message || "Try again");
       }
-    } catch (err: any) {
-        console.log("LOGIN ERROR:", err);
-        Alert.alert("Error", err?.message || "Something went wrong");
-      } finally {
+    } catch (err) {
+      Alert.alert("Error", "Backend not reachable");
+    } finally {
       setLoading(false);
     }
   };
 
-
   return (
     <View style={styles.container}>
       <Text style={styles.logo}>Agridas</Text>
-      <Text style={styles.title}>Welcome to Agridas</Text>
+      <Text style={styles.title}>Create Account</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        value={name}
+        onChangeText={setName}
+      />
 
       <View style={styles.row}>
         <Text>+91</Text>
         <TextInput
-          style={styles.input}
+          style={styles.phoneInput}
           placeholder="Mobile Number"
           keyboardType="number-pad"
           value={phoneno}
@@ -122,24 +129,25 @@ export default function LoginScreen() {
       </View>
 
       <TextInput
-        style={styles.inputFull}
+        style={styles.input}
         placeholder="Password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
       />
 
-      <TouchableOpacity style={styles.btn} onPress={handleLogin}>
+      <TouchableOpacity style={styles.btn} onPress={handleRegister}>
         <Text style={styles.btnText}>
-          {loading ? "Logging in..." : "Login"}
+          {loading ? "Creating..." : "Register"}
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push("/register")}>
-        <Text style={styles.registerText}>
-          Don’t have an account? Register
-        </Text>
-      </TouchableOpacity>
+      <Text
+        style={styles.link}
+        onPress={() => router.replace("/")}
+      >
+        Already have an account? Login
+      </Text>
     </View>
   );
 }
