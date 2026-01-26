@@ -1,14 +1,14 @@
+import { register } from "@/services/authService";
+import { router } from "expo-router";
+import { useState } from "react";
 import {
-  View,
+  Alert,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
+  View,
 } from "react-native";
-import { useState } from "react";
-import { router } from "expo-router";
-import { register } from "@/services/authService";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -91,7 +91,7 @@ export default function RegisterScreen() {
       });
 
       const data = await response.json();
-
+      console.log(data)
       if (response.ok) {
         Alert.alert("Success", data.message);
         router.replace("/");

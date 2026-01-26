@@ -1,3 +1,4 @@
+import LogoutItem from "@/components/Logout";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Image,
@@ -17,11 +18,11 @@ export default function Profile() {
       {/* PROFILE CARD */}
       <View style={styles.profileCard}>
         <Image
-          source={require("../../assets/images/farmer.jpg")} 
+          source={require("../../assets/images/farmer.jpg")}
           style={styles.avatar}
         />
-        <Text style={styles.name}>Akshay Farmer</Text>
-        <Text style={styles.sub}>AgriConnect User</Text>
+        <Text style={styles.name}>Akshat Tated</Text>
+        <Text style={styles.sub}>AgriDas User</Text>
       </View>
 
       {/* OPTIONS */}
@@ -30,7 +31,7 @@ export default function Profile() {
         <Item icon="wallet-outline" label="My Expenses & Earnings" />
         <Item icon="calendar-outline" label="My Bookings" />
         <Item icon="create-outline" label="Edit Profile" />
-        <Item icon="log-out-outline" label="Logout" danger />
+        <LogoutItem icon="log-out-outline" label="Logout" danger />
       </View>
     </ScrollView>
   );
