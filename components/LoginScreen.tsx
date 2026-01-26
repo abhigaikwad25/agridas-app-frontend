@@ -1,20 +1,23 @@
+import { login } from "@/services/authService";
+import { saveToken } from "@/services/authStorage";
+import * as Linking from "expo-linking";
+import * as Location from "expo-location";
+import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import {
-  View,
+  Alert,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
+  View,
 } from "react-native";
-import { useState } from "react";
-import { router } from "expo-router";
-import { login } from "@/services/authService";
-import { saveToken } from "@/services/authStorage";
 
 export default function LoginScreen() {
   const [phoneno, setPhoneno] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [locationGranted, setLocationGranted] = useState(false);
 
   const styles = StyleSheet.create({
     container: {
@@ -73,6 +76,35 @@ export default function LoginScreen() {
       fontWeight: "500",
     },
   });
+
+  useEffect(() => {
+    requestLocationPermission();
+  }, []);
+
+  const requestLocationPermission = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+
+    if (status === "granted") {
+      setLocationGranted(true);
+    } else {
+      setLocationGranted(false);
+
+      Alert.alert(
+        "Location Required",
+        "This app needs location permission to work properly.",
+        [
+          {
+            text: "Cancel",
+            style: "cancel"
+          },
+          {
+            text: "Open Settings",
+            onPress: () => Linking.openSettings()
+          }
+        ]
+      );
+    }
+  };
 
 
   const handleLogin = async () => {

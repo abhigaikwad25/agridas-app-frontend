@@ -1,5 +1,11 @@
-import LoginScreen from "@/components/LoginScreen";
+import { Redirect } from "expo-router";
 
 export default function Index() {
-  return <LoginScreen />;
+  const isLoggedIn = false; // later from token / storage
+
+  if (!isLoggedIn) {
+    return <Redirect href="/login" />;
+  }
+
+  return <Redirect href="/" />;
 }
