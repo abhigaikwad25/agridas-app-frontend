@@ -1,5 +1,6 @@
 import LogoutItem from "@/components/Logout";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import {
   Image,
   ScrollView,
@@ -27,19 +28,23 @@ export default function Profile() {
 
       {/* OPTIONS */}
       <View style={styles.card}>
-        <Item icon="storefront-outline" label="Seller Dashboard" />
-        <Item icon="wallet-outline" label="My Expenses & Earnings" />
-        <Item icon="calendar-outline" label="My Bookings" />
-        <Item icon="create-outline" label="Edit Profile" />
+        <Item icon="storefront-outline" label="Switch to Seller Mode" onPress={() =>
+          router.replace({
+            pathname: "/(seller-tabs)",
+          })
+        } />
+        <Item icon="wallet-outline" label="My Expenses & Earnings" onPress={""} />
+        <Item icon="calendar-outline" label="My Bookings" onPress={""}/>
+        <Item icon="create-outline" label="Edit Profile" onPress={""}/>
         <LogoutItem icon="log-out-outline" label="Logout" danger />
       </View>
     </ScrollView>
   );
 }
 
-function Item({ icon, label, danger = false }) {
+function Item({ icon, label, danger = false , onPress }) {
   return (
-    <TouchableOpacity style={styles.item}>
+    <TouchableOpacity style={styles.item}  onPress={onPress}>
       <Ionicons
         name={icon}
         size={24}
