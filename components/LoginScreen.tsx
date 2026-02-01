@@ -4,6 +4,7 @@ import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Alert,
   StyleSheet,
@@ -123,10 +124,12 @@ export default function LoginScreen() {
         // ✅ STORE ACCESS TOKEN HERE
         await saveToken(data.accesstoken); // or data.token
 
+        // 🔍 DEBUG: Check if token is actually saved
+        const t = await AsyncStorage.getItem("authToken");
+        console.log("SAVED TOKEN:", t);
+
         // ✅ NAVIGATE TO HOME
         router.replace("/(tabs)");
-      } else {
-        Alert.alert("Login failed", data.message || "Invalid credentials");
       }
     } catch (err: any) {
         console.log("LOGIN ERROR:", err);
