@@ -1,150 +1,118 @@
-import {
-  View,
-  FlatList,
-  ActivityIndicator,
-  Text,
-  TextInput,
-  StatusBar,
-} from "react-native";
-import { useEffect, useState } from "react";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
-import ToolCard from "../../components/ToolCard";
-import { Machine } from "../../types/Machine";
-import { TouchableOpacity } from "react-native";
-
-
-export default function RentMachine() {
-  const [tools, setTools] = useState<Machine[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [search, setSearch] = useState<string>("");
-
-  useEffect(() => {
-    fetchTools();
-  }, []);
-
-  const fetchTools = async () => {
-    try {
-      const token = await AsyncStorage.getItem("authToken");
-
-      console.log("RENT PAGE TOKEN:", token); // 🔍 debug
-
-      const res = await axios.get<Machine[]>(
-        "https://agridas.onrender.com/machine/list",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
-
-      setTools(res.data);
-    } catch (error) {
-      console.log("API Error:", error);
-    } finally {
-      setLoading(false);
-    }
+export default function RentMachineScreen() {
+  const goToMachines = (category: string) => {
+    // router.push({ pathname: "/machines", params: { category } });
   };
 
-  // 🔍 Search filter (only logic, no UI impact on cards)
-  const filteredTools = tools.filter((tool) =>
-    (tool.machineType || "")
-      .toString()
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
-
-  if (loading) {
-    return (
-      <ActivityIndicator
-        size="large"
-        color="#1E7F3B"
-        style={{ marginTop: 40 }}
-      />
-    );
-  }
-
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: "#fff",
-        paddingTop: StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24, // ✅ ANDROID TOP SAFE FIX
-      }}
-    >
-      <View style={{ flex: 1, paddingHorizontal: 16 }}>
-        {/* 🔍 SEARCH BAR */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            placeholder="Search..."
-            value={search}
-            onChangeText={setSearch}
-            placeholderTextColor="#999"
-            style={styles.searchInput}
-          />
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Rent Farming Machines 🚜</Text>
+        <Text style={styles.subtitle}>
+          Select category and find machines near you
+        </Text>
+      </View>
 
-          <TouchableOpacity style={styles.searchBtn}>
-            <Text style={styles.searchIcon}>🔍</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* 📃 LIST */}
-        <FlatList
-          data={filteredTools}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => <ToolCard tool={item} />}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <Text style={{ textAlign: "center", marginTop: 40 }}>
-              No machines available
-            </Text>
-          }
+      {/* Grid Cards */}
+      <View style={styles.grid}>
+        <CategoryCard
+          title="Sowing"
+          image={require("../../assets/images/sowing.jpg")}
+          onPress={() => goToMachines("Sowing")}
+        />
+        <CategoryCard
+          title="Harvesting"
+          image={require("../../assets/images/harvesting.jpg")}
+          onPress={() => goToMachines("Harvesting")}
+        />
+        <CategoryCard
+          title="Drone"
+          image={require("../../assets/images/drone.jpg")}
+          onPress={() => goToMachines("Drone")}
+        />
+        <CategoryCard
+          title="Logistics Machines"
+          image={require("../../assets/images/transport.jpg")}
+          onPress={() => goToMachines("sugarcane")}
         />
       </View>
-    </View>
+    </ScrollView>
+  );
+}
+
+/* ---------- Reusable Card ---------- */
+function CategoryCard({ title, image, onPress }: any) {
+  return (
+    <TouchableOpacity style={styles.card} onPress={onPress}>
+      <ImageBackground source={image} style={styles.image} imageStyle={{ borderRadius: 16 }}>
+        <View style={styles.overlay}>
+          <Text style={styles.cardText}>{title}</Text>
+        </View>
+      </ImageBackground>
+    </TouchableOpacity>
   );
 }
 
 
-const styles = {
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 30,
-    paddingLeft: 18,
-    marginBottom: 14,
-    height: 52,
-
-    // Shadow (Android)
-    elevation: 6,
-
-    // Shadow (iOS)
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-  },
-
-  searchInput: {
+const styles = StyleSheet.create({
+  container: {
     flex: 1,
-    fontSize: 15,
-    color: "#333",
+    backgroundColor: "#f4f6f4",
   },
 
-  searchBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#000",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 4,
+  header: {
+    padding: 30,
+    backgroundColor: "#1e7f43",
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
-
-  searchIcon: {
-    fontSize: 18,
+  title: {
+    paddingTop: 26,
+    fontSize: 22,
+    fontWeight: "bold",
     color: "#fff",
   },
-};
+  subtitle: {
+    marginTop: 6,
+    fontSize: 14,
+    color: "#e0f2e9",
+  },
+
+  /* Grid */
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    padding: 20,
+  },
+
+  card: {
+    width: "48%",
+    height: 220,
+    marginBottom: 15,
+    borderRadius: 16,
+    elevation: 3,
+    backgroundColor: "#fff",
+  },
+
+  image: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+
+  overlay: {
+    backgroundColor: "rgba(0,0,0,0.45)",
+    paddingVertical: 8,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+
+  cardText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+});

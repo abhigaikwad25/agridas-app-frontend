@@ -27,6 +27,9 @@ export default function TabLayout() {
         name="rent-machine"
         options={{
           title: "Rent Machine",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="construct-outline" size={size} color={color} />
+          ),
         }}
       />
 
