@@ -1,7 +1,6 @@
-import { ImageBackground, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { TouchableOpacity } from "react-native";
+import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function LabourHome() {
   return (
@@ -50,7 +49,7 @@ export default function LabourHome() {
         <Ionicons
           name="arrow-back-circle-outline"
           size={20}
-          color="#2E7D32"
+          color="#7A1F3D"
         />
         <Text style={styles.switchText}>Back to Buyer Home</Text>
       </TouchableOpacity>
@@ -61,7 +60,7 @@ export default function LabourHome() {
 function Point({ text }: { text: string }) {
   return (
     <View style={styles.point}>
-      <Ionicons name="checkmark-circle" size={20} color="#2E7D32" />
+      <Ionicons name="checkmark-circle" size={20} color="#7A1F3D" />
       <Text style={styles.pointText}>{text}</Text>
     </View>
   );
@@ -77,7 +76,7 @@ const styles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 28,
     paddingHorizontal: 24,
-    backgroundColor: "#2E7D32",
+    backgroundColor: "#7A1F3D",
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
@@ -158,7 +157,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2E7D32",
+    borderColor: "#7A1F3D",
     backgroundColor: "#FFF",
     marginHorizontal: 20,
   },
@@ -167,6 +166,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 15,
     fontWeight: "600",
-    color: "#2E7D32",
+    color: "#7A1F3D",
   },
 });
