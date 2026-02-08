@@ -29,17 +29,20 @@ export default function Profile() {
       {/* OPTIONS */}
       <View style={styles.card}>
         <Item icon="construct-outline" label="Switch to Machine Seller Mode" onPress={() =>
-          router.replace({
+          router.push({
             pathname: "/(seller-tabs)",
           })
         } />
          <Item icon="storefront-outline" label="Switch to Labor Provider Mode" onPress={() =>
-          router.replace({
+          router.push({
             pathname: "/(labour-tabs)",
           })
         } />
         
-        <Item icon="wallet-outline" label="My Expenses & Earnings" onPress={""} />
+        <Item icon="wallet-outline" label="My Expenses & Earnings" onPress={()=> 
+        router.push({
+            pathname: "/dashboardFarmer",
+          })} />
         <Item icon="calendar-outline" label="My Bookings" onPress={""}/>
         <Item icon="create-outline" label="Edit Profile" onPress={""}/>
         <LogoutItem icon="log-out-outline" label="Logout" danger />
