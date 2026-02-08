@@ -1,8 +1,9 @@
-import { getToken } from "@/services/authStorage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useEffect, useState } from "react";
+
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Modal,
@@ -14,8 +15,11 @@ import {
   View,
 } from "react-native";
 
-const API_URL = "https://agridas.onrender.com/machine/register";
-const LOCATION_API = "https://agridas.onrender.com/location/list";
+import { API } from "@/constants/api";
+import { getToken } from "@/services/authStorage";
+
+const API_URL = `${API.BASE_URL}/machine/register`;
+const LOCATION_API = `${API.BASE_URL}/location/list`;
 
 enum UseCase {
   Harvesting = "harvesting",
@@ -26,31 +30,15 @@ enum UseCase {
 
 const CROPS = ["Wheat", "Rice", "Cotton", "Soybean", "Sugarcane"];
 
-
 export default function AddMachineScreen() {
-  
   const [images, setImages] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
-
-
-  /* 📍 FETCH LOCATIONS List */
-  const fetchLocations = async () => {
-    let locationofuser = await Location.getCurrentPositionAsync()
-    console.log('location of user', locationofuser)
-    if (locations.length) return;
-    const token = await getToken();
-    const res = await fetch(LOCATION_API, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    setLocations(data);
-  };
-
-  
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
+    name: "",
     taluka: "",
     district: "",
     state: "",
@@ -59,36 +47,44 @@ export default function AddMachineScreen() {
     ownerPhoneno: "",
     description: "",
     deliveryChargePerKm: "",
-    maxAcreCoverage: "",         // keep as string for input
+    maxAcreCoverage: "",
     crops: [] as string[],
     machineType: [] as string[],
   });
 
-  
+  /* 📍 FETCH LOCATIONS */
+  const fetchLocations = async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(LOCATION_API, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await res.json();
+      setLocations(data);
+    } catch (err) {
+      console.log("Location fetch error", err);
+      Alert.alert("Error", "Failed to fetch locations");
+    }
+  };
+
   useEffect(() => {
     (async () => {
       const media = await ImagePicker.requestMediaLibraryPermissionsAsync();
       const camera = await ImagePicker.requestCameraPermissionsAsync();
-
       if (!media.granted || !camera.granted) {
-        Alert.alert(
-          "Permission required",
-          "Camera and gallery permissions are required"
-        );
+        Alert.alert("Permission required", "Camera & gallery permission required");
       }
     })();
   }, []);
+
   const pickImage = async () => {
     Alert.alert("Upload Image", "Choose option", [
       {
         text: "Camera",
         onPress: async () => {
-          const res = await ImagePicker.launchCameraAsync({
-            quality: 0.7,
-          });
-          if (!res.canceled) {
-            setImages((prev) => [...prev, ...res.assets]);
-          }
+          const res = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+          if (!res.canceled) setImages((p) => [...p, ...res.assets]);
         },
       },
       {
@@ -98,17 +94,14 @@ export default function AddMachineScreen() {
             allowsMultipleSelection: true,
             quality: 0.7,
           });
-          if (!res.canceled) {
-            setImages((prev) => [...prev, ...res.assets]);
-          }
+          if (!res.canceled) setImages((p) => [...p, ...res.assets]);
         },
       },
       { text: "Cancel", style: "cancel" },
     ]);
   };
 
-
-  /* 🔁 MULTI SELECT */
+  /* MULTI SELECT */
   const toggleMulti = (key: "crops" | "machineType", value: string) => {
     setForm((prev) => ({
       ...prev,
@@ -117,97 +110,108 @@ export default function AddMachineScreen() {
         : [...prev[key], value],
     }));
   };
+
   const resetForm = () => {
-  setForm({
-    taluka: "",
-    district: "",
-    state: "",
-    pincode:"",
-    pricePerDay: "",
-    ownerPhoneno: "",
-    description: "",
-    deliveryChargePerKm: "",
-    maxAcreCoverage: "",
-    crops: [],
-    machineType: [],
-  });
+    setForm({
+      name: "",
+      taluka: "",
+      district: "",
+      state: "",
+      pincode: "",
+      pricePerDay: "",
+      ownerPhoneno: "",
+      description: "",
+      deliveryChargePerKm: "",
+      maxAcreCoverage: "",
+      crops: [],
+      machineType: [],
+    });
+    setSelectedLocation(null);
+    setImages([]);
+  };
 
-  setSelectedLocation(null);
-  setImages([]);
-};
+  /* 🚀 SUBMIT MACHINE */
+  const submitMachine = async () => {
+    if (loading) return;
 
+    if (!selectedLocation) {
+      Alert.alert("Error", "Select taluka");
+      return;
+    }
 
-  /* 🚀 SUBMIT */
-const submitMachine = async () => {
-  if (!selectedLocation) {
-    Alert.alert("Error", "Please select taluka");
-    return;
-  }
+    const required = ["name", "pincode", "pricePerDay", "ownerPhoneno", "maxAcreCoverage"];
+    for (const f of required) {
+      if (!(form as any)[f]) {
+        Alert.alert("Error", `Please fill ${f}`);
+        return;
+      }
+    }
 
-  const token = await getToken();
-  const data = new FormData();
+    if (!form.crops.length || !form.machineType.length) {
+      Alert.alert("Error", "Select crops & machine type");
+      return;
+    }
 
-  data.append("taluka", form.taluka);
-  data.append("district", form.district);
-  data.append("state", form.state);
-  data.append("pincode", form.pincode); // ✅ REQUIRED
+    if (images.length < 2) {
+      Alert.alert("Error", "Upload at least 2 images");
+      return;
+    }
 
-  data.append("pricePerDay", Number(form.pricePerDay).toString());
-  data.append("ownerPhoneno", form.ownerPhoneno);
-  data.append("description", form.description);
-  data.append("deliveryChargePerKm", form.deliveryChargePerKm);
-  data.append(
-    "maxAcreCoverage",
-    Number(form.maxAcreCoverage).toString()
-  );
+    try {
+      setLoading(true);
 
-  // ✅ ARRAYS AS JSON
-  form.machineType.forEach((type) => {
-  data.append("machineType[]", type);
-});
+      const token = await getToken();
+      const loc = await Location.getCurrentPositionAsync({});
+      const lat = loc.coords.latitude;
+      const long = loc.coords.longitude;
 
-form.crops.forEach((crop) => {
-  data.append("crops[]", crop);
-});
+      const data = new FormData();
 
-  data.append("locationId", selectedLocation._id);
+      Object.entries(form).forEach(([k, v]: any) => {
+        if (!Array.isArray(v)) data.append(k, String(v));
+      });
 
-  images.forEach((img, i) =>
-    data.append("images", {
-      uri: img.uri,
-      name: `img_${i}.jpg`,
-      type: "image/jpeg",
-    } as any)
-  );
-
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: data,
-  });
-
-  const result = await res.json();
-  console.log("API RESULT:", result);
-
-  if (!res.ok) {
-    Alert.alert("Error", result.message?.join("\n") || "Something went wrong");
-    return;
-  }
-
-  Alert.alert("Success", "Machine added successfully", [
-  {
-    text: "OK",
-    onPress: resetForm,
-  },
-]);
-};
+      data.append("machineType", JSON.stringify(form.machineType));
+data.append("crops", JSON.stringify(form.crops));
 
 
+      data.append("locationId", selectedLocation._id);
+      data.append(
+        "geoLocation",
+        JSON.stringify({ type: "Point", coordinates: [long, lat] })
+      );
 
+      images.forEach((img, i) =>
+        data.append("images", {
+          uri: img.uri,
+          name: `img_${Date.now()}_${i}.jpg`,
+          type: "image/jpeg",
+        } as any)
+      );
+      console.log(data)
 
-  /* 🧩 CHECKBOX GRID */
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: data,
+      });
+
+      const result = await res.json();
+      console.log("SERVER:", result);
+
+      if (!res.ok) throw new Error(result.message || "Upload failed");
+
+      Alert.alert("Success", "Machine added successfully");
+      resetForm();
+    } catch (err: any) {
+      console.log("Upload Error", err);
+      Alert.alert("Error", err.message || "Upload failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* GRID */
   const CheckboxGrid = ({
     data,
     selected,
@@ -226,9 +230,7 @@ form.crops.forEach((crop) => {
             style={[styles.gridItem, active && styles.gridItemSelected]}
             onPress={() => onToggle(item)}
           >
-            <View style={styles.checkbox}>
-              {active && <View style={styles.checkboxInner} />}
-            </View>
+            <View style={styles.checkbox}>{active && <View style={styles.checkboxInner} />}</View>
             <Text style={styles.gridText}>{item}</Text>
           </TouchableOpacity>
         );
@@ -238,18 +240,25 @@ form.crops.forEach((crop) => {
 
   return (
     <>
+      {/* LOADER */}
+      {loading && (
+        <View style={styles.loaderOverlay}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={{ color: "#fff", marginTop: 10 }}>Uploading machine...</Text>
+        </View>
+      )}
+
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
-  <Text style={styles.headerTitle}>🚜 Add Your Machine</Text>
-  <Text style={styles.headerSubtitle}>
-    Earn by renting your machine to nearby farmers
-  </Text>
-</View>
-          <TouchableOpacity onPress={resetForm} style={styles.clearBtn}>
-    <Text style={styles.clearText}>Clear</Text>
-  </TouchableOpacity>
+          <Text style={styles.headerTitle}>🚜 Add Your Machine</Text>
+          <Text style={styles.headerSubtitle}>Earn by renting your machine</Text>
+        </View>
 
-        {/* Taluka */}
+        <TouchableOpacity onPress={resetForm} style={styles.clearBtn}>
+          <Text style={styles.clearText}>Clear</Text>
+        </TouchableOpacity>
+
+        {/* TALUKA */}
         <TouchableOpacity
           style={styles.dropdown}
           onPress={() => {
@@ -258,25 +267,30 @@ form.crops.forEach((crop) => {
           }}
         >
           <Text>{form.taluka || "Select Taluka"}</Text>
-          
         </TouchableOpacity>
 
-        <TextInput placeholder="District" style={styles.input} value={form.district} editable={false} />
-        <TextInput placeholder="State"style={styles.input} value={form.state} editable={false} />
+        <TextInput style={styles.input} value={form.district} editable={false} placeholder="District" />
+        <TextInput style={styles.input} value={form.state} editable={false} placeholder="State" />
+
         <TextInput
           style={styles.input}
           placeholder="Pincode"
           keyboardType="number-pad"
           maxLength={6}
           value={form.pincode}
-          onChangeText={(v) =>
-            setForm({ ...form, pincode: v.replace(/[^0-9]/g, "") })
-          }
+          onChangeText={(v) => setForm({ ...form, pincode: v.replace(/[^0-9]/g, "") })}
         />
 
         <TextInput
           style={styles.input}
-          placeholder="Price per day in Rs"
+          placeholder="Machine Name"
+          value={form.name}
+          onChangeText={(v) => setForm({ ...form, name: v })}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Price per day"
           keyboardType="number-pad"
           value={form.pricePerDay}
           onChangeText={(v) => setForm({ ...form, pricePerDay: v })}
@@ -284,17 +298,28 @@ form.crops.forEach((crop) => {
 
         <TextInput
           style={styles.input}
-          placeholder="Owner phone (10 digits)"
+          placeholder="Delivery per KM"
+          keyboardType="number-pad"
+          value={form.deliveryChargePerKm}
+          onChangeText={(v) => setForm({ ...form, deliveryChargePerKm: v })}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Max Acre Coverage"
+          keyboardType="number-pad"
+          value={form.maxAcreCoverage}
+          onChangeText={(v) => setForm({ ...form, maxAcreCoverage: v })}
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Owner Phone"
           keyboardType="number-pad"
           maxLength={10}
           value={form.ownerPhoneno}
-          onChangeText={(v) => {
-            // allow only digits
-            const digitsOnly = v.replace(/[^0-9]/g, "");
-            setForm({ ...form, ownerPhoneno: digitsOnly });
-          }}
+          onChangeText={(v) => setForm({ ...form, ownerPhoneno: v.replace(/[^0-9]/g, "") })}
         />
-
 
         <TextInput
           style={styles.input}
@@ -305,11 +330,7 @@ form.crops.forEach((crop) => {
         />
 
         <Text style={styles.label}>Crops</Text>
-        <CheckboxGrid
-          data={CROPS}
-          selected={form.crops}
-          onToggle={(v) => toggleMulti("crops", v)}
-        />
+        <CheckboxGrid data={CROPS} selected={form.crops} onToggle={(v) => toggleMulti("crops", v)} />
 
         <Text style={styles.label}>Machine Type</Text>
         <CheckboxGrid
@@ -323,8 +344,16 @@ form.crops.forEach((crop) => {
         </TouchableOpacity>
 
         <View style={styles.imageRow}>
-          {images.map((i, idx) => (
-            <Image key={idx} source={{ uri: i.uri }} style={styles.preview} />
+          {images.map((img, idx) => (
+            <View key={idx} style={styles.imageWrapper}>
+              <Image source={{ uri: img.uri }} style={styles.preview} />
+              <TouchableOpacity
+                style={styles.removeImgBtn}
+                onPress={() => setImages((p) => p.filter((_, i) => i !== idx))}
+              >
+                <Text style={styles.removeImgText}>✕</Text>
+              </TouchableOpacity>
+            </View>
           ))}
         </View>
 
@@ -333,118 +362,142 @@ form.crops.forEach((crop) => {
         </TouchableOpacity>
       </ScrollView>
 
-   <Modal visible={showLocationModal} animationType="slide">
-  <View style={styles.modalContainer}>
-    
-    {/* 🔝 Modal Header */}
-    <View style={styles.modalHeader}>
-      <Text style={styles.modalTitle}>Select Taluka</Text>
+      {/* LOCATION MODAL */}
+      <Modal visible={showLocationModal} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Taluka</Text>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setShowLocationModal(false)}>
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+          </View>
 
-      <TouchableOpacity
-        style={styles.closeBtn}
-        onPress={() => setShowLocationModal(false)}
-      >
-        <Text style={styles.closeText}>✕</Text>
-      </TouchableOpacity>
-    </View>
-
-    {/* 📍 Location List */}
-    <ScrollView contentContainerStyle={{ padding: 20 }}>
-      {locations.map((l) => (
-        <TouchableOpacity
-          key={l._id}
-          style={styles.option}
-          onPress={() => {
-            setSelectedLocation(l);
-            setForm({
-              ...form,
-              taluka: l.taluka,
-              district: l.district,
-              state: l.state,
-            });
-            setShowLocationModal(false);
-          }}
-        >
-          <Text>{l.taluka}</Text>
-          <Text style={{ fontSize: 12, color: "#666" }}>
-            {l.district}, {l.state}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  </View>
-</Modal>
-
+          <ScrollView contentContainerStyle={{ padding: 20 }}>
+            {locations.map((l) => (
+              <TouchableOpacity
+                key={l._id}
+                style={styles.option}
+                onPress={() => {
+                  setSelectedLocation(l);
+                  setForm({ ...form, taluka: l.taluka, district: l.district, state: l.state });
+                  setShowLocationModal(false);
+                }}
+              >
+                <Text>{l.taluka}</Text>
+                <Text style={{ fontSize: 12, color: "#666" }}>
+                  {l.district}, {l.state}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
     </>
   );
 }
 
+
 /* 🎨 STYLES */
 const styles = StyleSheet.create({
-  modalContainer: {
-  flex: 1,
-  backgroundColor: "#FFF7F8",
-},
-
-modalHeader: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-  paddingVertical: 14,
-  borderBottomWidth: 1,
-  borderColor: "#FADADD",
-  backgroundColor: "#257a1f",
-},
-
-modalTitle: {
-  color: "#fff",
-  fontSize: 18,
-  fontWeight: "700",
-},
-
-closeBtn: {
+loaderOverlay: {
   position: "absolute",
-  right: 16,
-  padding: 6,
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  backgroundColor: "rgba(0,0,0,0.5)",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 1000,
 },
 
-closeText: {
-  color: "#fff",
-  fontSize: 20,
-  fontWeight: "700",
+
+  imageWrapper: {
+  position: "relative",
 },
+
+removeImgBtn: {
+  position: "absolute",
+  top: -6,
+  right: -6,
+  backgroundColor: "red",
+  width: 22,
+  height: 22,
+  borderRadius: 11,
+  justifyContent: "center",
+  alignItems: "center",
+},
+
+removeImgText: {
+  color: "#fff",
+  fontSize: 12,
+  fontWeight: "bold",
+},
+
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFF7F8",
+  },
+
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: "#FADADD",
+    backgroundColor: "#257a1f",
+  },
+
+  modalTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  closeBtn: {
+    position: "absolute",
+    right: 16,
+    padding: 6,
+  },
+
+  closeText: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "700",
+  },
 
   clearBtn: {
-  paddingHorizontal: 12,
-  paddingVertical: 6,
-  borderRadius: 20,
-  backgroundColor: "#e1e1e1",
-  borderWidth: 1,
-  borderColor: "#000000",
-   alignSelf: "flex-end", 
-},
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: "#e1e1e1",
+    borderWidth: 1,
+    borderColor: "#000000",
+    alignSelf: "flex-end",
+  },
 
-clearText: {
-  fontSize: 12,
-  fontWeight: "600",
-  color: "#7A1F3D",
-},
+  clearText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#7A1F3D",
+  },
   header: {
-  backgroundColor: "#7A1F3D",
-  padding: 20,
-  borderRadius: 18,
-  marginBottom: 20,
-},
-headerTitle: {
-  color: "#fff",
-  fontSize: 24,
-  fontWeight: "800",
-},
-headerSubtitle: {
-  color: "#FFD6E0",
-  marginTop: 6,
-  fontSize: 13,
-},
+    backgroundColor: "#7A1F3D",
+    padding: 20,
+    borderRadius: 18,
+    marginBottom: 20,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "800",
+  },
+  headerSubtitle: {
+    color: "#FFD6E0",
+    marginTop: 6,
+    fontSize: 13,
+  },
 
   container: { padding: 20, paddingBottom: 60, backgroundColor: "#FFF7F8" },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 16, paddingTop: 3 },
