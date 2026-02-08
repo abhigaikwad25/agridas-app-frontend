@@ -1,6 +1,5 @@
 // app/machines.tsx
 import React, { useEffect, useState } from "react";
-import { FontAwesome5 } from "@expo/vector-icons";
 import {
   View,
   Text,
@@ -16,6 +15,7 @@ import {
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
+import { FontAwesome5 } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
@@ -41,7 +41,7 @@ export default function MachinesScreen() {
           `https://agridas.onrender.com/machine/list?lat=${lat}&long=${long}&machineType=${machineType}`,
           {
             headers: { Authorization: `Bearer ${token}` },
-          },
+          }
         );
 
         setMachines(res.data);
@@ -78,7 +78,8 @@ export default function MachinesScreen() {
   const renderItem = ({ item }: any) => {
     const imageUrl = item.images?.[0];
 
-    const locationLine = `${item.taluka}, ${item.district}, ${item.state}`;
+    const locationLine =
+      `${item.taluka}, ${item.district}, ${item.state}`;
 
     return (
       <TouchableOpacity activeOpacity={0.95} style={styles.cardWrap}>
@@ -88,7 +89,6 @@ export default function MachinesScreen() {
             style={styles.imageBackground}
             imageStyle={styles.imageStyle}
           >
-            {/* Heart icon only */}
             <TouchableOpacity style={styles.heart}>
               <Text style={{ color: "#fff", fontWeight: "700" }}>♡</Text>
             </TouchableOpacity>
@@ -127,11 +127,11 @@ export default function MachinesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* AIRBNB-STYLE SEARCH BAR */}
+      {/* AIRBNB STYLE SEARCH BAR */}
       <View style={styles.searchOuter}>
         <View style={styles.searchPill}>
           <TextInput
-            placeholder="Search..."
+            placeholder="Search machines..."
             style={styles.searchInput}
             value={searchText}
             onChangeText={setSearchText}
@@ -159,12 +159,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#f4f6f4",
-    paddingTop: 25, // prevents overlap with status bar
+    paddingTop: 25,
   },
 
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
-  /* ===== SEARCH BAR (your exact style) ===== */
   searchOuter: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -197,7 +196,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  /* ===== CARD UI ===== */
   cardWrap: {
     alignItems: "center",
   },
@@ -279,7 +277,7 @@ const styles = StyleSheet.create({
 
   locationRow: {
     flexDirection: "row",
-    alignItems: "center", // ← KEY FIX
+    alignItems: "center",
     marginTop: 6,
   },
 
@@ -287,7 +285,7 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     color: "#444",
     fontSize: 13,
-    lineHeight: 18, // ← keeps text vertically centered
+    lineHeight: 18,
   },
 
   bottomRow: {
