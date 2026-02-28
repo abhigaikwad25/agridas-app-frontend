@@ -1,20 +1,7 @@
-// import { Redirect } from "expo-router";
 
-// export default function Index() {
-//   const isLoggedIn = false; // later from token / storage
-
-//   if (!isLoggedIn) {
-//     return <Redirect href="/login" />;
-//   }
-
-//   return <Redirect href="/" />;
-// }
-
-
-
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Redirect } from "expo-router";
 import { useEffect, useState } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import OnboardingIntro from "./onboarding/OnboardingIntro"; // your onboarding UI component
 
 export default function Index() {
@@ -24,10 +11,7 @@ export default function Index() {
 
   useEffect(() => {
     const checkFlow = async () => {
-      const onboardingSeen = await AsyncStorage.getItem("onboarding_seen");
-      const token = await AsyncStorage.getItem("access_token");
-
-      setSeenOnboarding(!!onboardingSeen);
+      const token = await AsyncStorage.getItem("authToken");
       setIsLoggedIn(!!token);
       setLoading(false);
     };
@@ -37,14 +21,9 @@ export default function Index() {
 
   if (loading) return null;
 
-  // 1️⃣ Show onboarding first
-  if (!seenOnboarding) {
-    return <OnboardingIntro />;
-  }
-
-  // 2️⃣ Go to login / register
+  // 2️⃣ Go to start
   if (!isLoggedIn) {
-    return <Redirect href="/login" />;
+     return <OnboardingIntro />;
   }
 
   // 3️⃣ Go to home
