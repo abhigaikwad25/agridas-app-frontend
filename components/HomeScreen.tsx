@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
-useEffect(() => {
+export default function HomeScreen() {
+  useEffect(() => {
   const requestLocationPermission = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
 
@@ -23,8 +24,6 @@ useEffect(() => {
 
   requestLocationPermission();
 }, []);
-
-export default function HomeScreen() {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
