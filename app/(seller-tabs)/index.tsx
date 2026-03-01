@@ -1,13 +1,12 @@
-import { ImageBackground, StyleSheet, Text, View } from "react-native";
+import { ImageBackground, StyleSheet, Text, View, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { TouchableOpacity } from "react-native";
 
-
 export default function SellerHome() {
   return (
-    <View style={styles.container}>
-      {/* HEADER */}
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
+      {/* HEADER + CONTENT */}
       <View style={styles.header}>
         <Text style={styles.brand}>AGRIDAS • SELLER</Text>
         <Text style={styles.welcome}>Welcome 👋</Text>
@@ -16,7 +15,7 @@ export default function SellerHome() {
         </Text>
       </View>
 
-      {/* CONTENT */}
+      {/* MAIN CONTENT */}
       <View style={styles.content}>
         <ImageBackground
           source={require("../../assets/images/sellerimage.jpg")}
@@ -24,7 +23,6 @@ export default function SellerHome() {
           imageStyle={{ borderRadius: 18 }}
         />
 
-        {/* TITLE BELOW IMAGE */}
         <Text style={styles.heroTitle}>
           Don’t let your machines stay idle
         </Text>
@@ -33,7 +31,6 @@ export default function SellerHome() {
           Rent them to nearby farmers and earn consistently throughout the season.
         </Text>
 
-        {/* GUIDELINES */}
         <View style={styles.card}>
           <Point
             text="List your machines once and receive bookings from nearby farmers"
@@ -48,15 +45,16 @@ export default function SellerHome() {
             text="Track bookings and earnings from your dashboard"
           />
         </View>
+
+        <TouchableOpacity
+          style={styles.switchButton}
+          onPress={() => router.replace("/(tabs)")}
+        >
+          <Ionicons name="arrow-back-circle-outline" size={20} color="#7A1F3D" />
+          <Text style={styles.switchText}>Back to Buyer Home</Text>
+        </TouchableOpacity>
       </View>
-      <TouchableOpacity
-        style={styles.switchButton}
-        onPress={() => router.replace("/(tabs)")}
-      >
-        <Ionicons name="arrow-back-circle-outline" size={20} color="#7A1F3D" />
-        <Text style={styles.switchText}>Back to Buyer Home</Text>
-      </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -68,6 +66,7 @@ function Point({ text }) {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -103,7 +102,6 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    flex: 1,
     padding: 20,
   },
 
@@ -134,6 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
     elevation: 4,
+    marginBottom: 24,
   },
 
   point: {
@@ -149,23 +148,22 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     flex: 1,
   },
+
   switchButton: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-  marginTop: 24,
-  paddingVertical: 14,
-  borderRadius: 14,
-  borderWidth: 1,
-  borderColor: "#7A1F3D",
-  backgroundColor: "#FFF",
-},
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#7A1F3D",
+    backgroundColor: "#FFF",
+  },
 
-switchText: {
-  marginLeft: 8,
-  fontSize: 15,
-  fontWeight: "600",
-  color: "#7A1F3D",
-},
-
+  switchText: {
+    marginLeft: 8,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#7A1F3D",
+  },
 });

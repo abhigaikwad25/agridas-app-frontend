@@ -1,21 +1,21 @@
 // app/machines.tsx
+import { FontAwesome5 } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
+  ActivityIndicator,
+  Dimensions,
   FlatList,
   ImageBackground,
-  TouchableOpacity,
-  ActivityIndicator,
-  StyleSheet,
-  Dimensions,
   SafeAreaView,
+  StyleSheet,
+  Text,
   TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import axios from "axios";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLocalSearchParams } from "expo-router";
-import { FontAwesome5 } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
@@ -127,7 +127,6 @@ export default function MachinesScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* AIRBNB STYLE SEARCH BAR */}
       <View style={styles.searchOuter}>
         <View style={styles.searchPill}>
           <TextInput

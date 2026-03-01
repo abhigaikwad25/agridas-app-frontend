@@ -42,7 +42,15 @@ export default function SellerTabLayout() {
           ),
         }}
       />
-
+      <Tabs.Screen
+        name="assets"
+        options={{
+          title: "Assets",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="hardware-chip-outline" size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="dashboard"
         options={{

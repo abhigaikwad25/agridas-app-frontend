@@ -52,21 +52,21 @@ export default function AddMachineScreen() {
     machineType: [] as string[],
   });
 
-  /* 📍 FETCH LOCATIONS */
-  const fetchLocations = async () => {
-    try {
-      const token = await getToken();
-      const res = await fetch(LOCATION_API, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  useEffect(() => {
+    const fetchLocationsAsync = async () => {
+      try {
+        const token = await getToken();
+        const res = await fetch(LOCATION_API, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        setLocations(data);
+      } catch (err) {
+        console.log("Location fetch error", err);
+        Alert.alert("Error", "Failed to fetch locations");
+      }
+    };
 
-      const data = await res.json();
-      setLocations(data);
-    } catch (err) {
-      console.log("Location fetch error", err);
-      Alert.alert("Error", "Failed to fetch locations");
-    }
-  };
+    fetchLocationsAsync();
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -172,7 +172,7 @@ export default function AddMachineScreen() {
       });
 
       data.append("machineType", JSON.stringify(form.machineType));
-data.append("crops", JSON.stringify(form.crops));
+      data.append("crops", JSON.stringify(form.crops));
 
 
       data.append("locationId", selectedLocation._id);
@@ -249,6 +249,7 @@ data.append("crops", JSON.stringify(form.crops));
       )}
 
       <ScrollView contentContainerStyle={styles.container}>
+        {/* HEADER */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>🚜 Add Your Machine</Text>
           <Text style={styles.headerSubtitle}>Earn by renting your machine</Text>
@@ -259,79 +260,92 @@ data.append("crops", JSON.stringify(form.crops));
         </TouchableOpacity>
 
         {/* TALUKA */}
+        <Text style={styles.label}>Taluka</Text>
         <TouchableOpacity
           style={styles.dropdown}
-          onPress={() => {
-            fetchLocations();
-            setShowLocationModal(true);
-          }}
+          onPress={() => setShowLocationModal(true)}
         >
-          <Text>{form.taluka || "Select Taluka"}</Text>
+          <Text style={{ color: form.taluka ? "#000" : "#999" }}>
+            {form.taluka || "Select Taluka"}
+          </Text>
         </TouchableOpacity>
 
-        <TextInput style={styles.input} value={form.district} editable={false} placeholder="District" />
-        <TextInput style={styles.input} value={form.state} editable={false} placeholder="State" />
+        {/* READONLY FIELDS */}
+        <Text style={styles.label}>District</Text>
+        <TextInput style={styles.input} value={form.district} editable={false} />
 
+        <Text style={styles.label}>State</Text>
+        <TextInput style={styles.input} value={form.state} editable={false} />
+
+        {/* PINCODE */}
+        <Text style={styles.label}>Pincode</Text>
         <TextInput
           style={styles.input}
-          placeholder="Pincode"
           keyboardType="number-pad"
           maxLength={6}
           value={form.pincode}
           onChangeText={(v) => setForm({ ...form, pincode: v.replace(/[^0-9]/g, "") })}
         />
 
+        {/* MACHINE NAME */}
+        <Text style={styles.label}>Machine Name</Text>
         <TextInput
           style={styles.input}
-          placeholder="Machine Name"
           value={form.name}
           onChangeText={(v) => setForm({ ...form, name: v })}
         />
 
+        {/* PRICE */}
+        <Text style={styles.label}>Price per Day (₹)</Text>
         <TextInput
           style={styles.input}
-          placeholder="Price per day"
           keyboardType="number-pad"
           value={form.pricePerDay}
           onChangeText={(v) => setForm({ ...form, pricePerDay: v })}
         />
 
+        <Text style={styles.label}>Delivery Charge per KM (₹)</Text>
         <TextInput
           style={styles.input}
-          placeholder="Delivery per KM"
           keyboardType="number-pad"
           value={form.deliveryChargePerKm}
           onChangeText={(v) => setForm({ ...form, deliveryChargePerKm: v })}
         />
 
+        <Text style={styles.label}>Max Acre Coverage</Text>
         <TextInput
           style={styles.input}
-          placeholder="Max Acre Coverage"
           keyboardType="number-pad"
           value={form.maxAcreCoverage}
           onChangeText={(v) => setForm({ ...form, maxAcreCoverage: v })}
         />
 
+        <Text style={styles.label}>Owner Phone</Text>
         <TextInput
           style={styles.input}
-          placeholder="Owner Phone"
           keyboardType="number-pad"
           maxLength={10}
           value={form.ownerPhoneno}
           onChangeText={(v) => setForm({ ...form, ownerPhoneno: v.replace(/[^0-9]/g, "") })}
         />
 
+        <Text style={styles.label}>Description</Text>
         <TextInput
-          style={styles.input}
-          placeholder="Description"
+          style={[styles.input, { minHeight: 80 }]}
           multiline
           value={form.description}
           onChangeText={(v) => setForm({ ...form, description: v })}
         />
 
+        {/* CROPS */}
         <Text style={styles.label}>Crops</Text>
-        <CheckboxGrid data={CROPS} selected={form.crops} onToggle={(v) => toggleMulti("crops", v)} />
+        <CheckboxGrid
+          data={CROPS}
+          selected={form.crops}
+          onToggle={(v) => toggleMulti("crops", v)}
+        />
 
+        {/* MACHINE TYPE */}
         <Text style={styles.label}>Machine Type</Text>
         <CheckboxGrid
           data={Object.values(UseCase)}
@@ -339,6 +353,8 @@ data.append("crops", JSON.stringify(form.crops));
           onToggle={(v) => toggleMulti("machineType", v)}
         />
 
+        {/* IMAGES */}
+        <Text style={styles.label}>Images</Text>
         <TouchableOpacity style={styles.imageBtn} onPress={pickImage}>
           <Text style={{ color: "#fff" }}>Upload Images</Text>
         </TouchableOpacity>
@@ -399,40 +415,40 @@ data.append("crops", JSON.stringify(form.crops));
 
 /* 🎨 STYLES */
 const styles = StyleSheet.create({
-loaderOverlay: {
-  position: "absolute",
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: "rgba(0,0,0,0.5)",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 1000,
-},
+  loaderOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
 
 
   imageWrapper: {
-  position: "relative",
-},
+    position: "relative",
+  },
 
-removeImgBtn: {
-  position: "absolute",
-  top: -6,
-  right: -6,
-  backgroundColor: "red",
-  width: 22,
-  height: 22,
-  borderRadius: 11,
-  justifyContent: "center",
-  alignItems: "center",
-},
+  removeImgBtn: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    backgroundColor: "red",
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
-removeImgText: {
-  color: "#fff",
-  fontSize: 12,
-  fontWeight: "bold",
-},
+  removeImgText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
 
   modalContainer: {
     flex: 1,

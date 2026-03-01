@@ -1,16 +1,16 @@
 // rent-machine.tsx
+import * as Location from "expo-location";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ImageBackground,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from "react-native";
-import * as Location from "expo-location";
-import { router } from "expo-router";
 
 export default function RentMachineScreen() {
   // const navigation = useNavigation<any>();
@@ -31,7 +31,9 @@ export default function RentMachineScreen() {
         return;
       }
 
-      let location = await Location.getCurrentPositionAsync({});
+      let location = await Location.getCurrentPositionAsync({
+         accuracy: Location.Accuracy.Balanced,
+      });
       setUserLocation({
         lat: location.coords.latitude,
         long: location.coords.longitude,
@@ -50,7 +52,7 @@ export default function RentMachineScreen() {
   }
 
   router.push({
-    pathname: "/machines",
+    pathname: "../machines",
     params: {
       machineType: machineType.toLowerCase(),
       lat: userLocation.lat,

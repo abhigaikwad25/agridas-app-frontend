@@ -1,17 +1,29 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function BookingsScreen() {
   const [selectedTab, setSelectedTab] = useState("request");
 
+  const tabs = [
+    { key: "request", label: "Requests" },
+    { key: "ongoing", label: "Ongoing" },
+    { key: "completed", label: "Completed" },
+  ];
+
   const renderContent = () => {
     switch (selectedTab) {
       case "request":
-        return <Text>Request Booking Content</Text>;
+        return <Text style={styles.contentText}>Request Booking Content</Text>;
       case "ongoing":
-        return <Text>Ongoing Bookings Content</Text>;
+        return <Text style={styles.contentText}>Ongoing Bookings Content</Text>;
       case "completed":
-        return <Text>Completed Bookings Content</Text>;
+        return <Text style={styles.contentText}>Completed Bookings Content</Text>;
       default:
         return null;
     }
@@ -19,37 +31,42 @@ export default function BookingsScreen() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Bookings Received</Text>
-
-
-      {/* Tabs */}
-      <View style={styles.tabsContainer}>
-        {[
-          { key: "request", label: "Request Booking" },
-          { key: "ongoing", label: "Ongoing Bookings" },
-          { key: "completed", label: "Completed Bookings" },
-        ].map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-              styles.tab,
-              selectedTab === tab.key && styles.activeTab,
-            ]}
-            onPress={() => setSelectedTab(tab.key)}
-          >
-            <Text
-              style={[
-                styles.tabText,
-                selectedTab === tab.key && styles.activeTabText,
-              ]}
-            >
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+      {/* HEADER */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>📋 Bookings Received</Text>
+        <Text style={styles.headerSubtitle}>
+          Manage all your machine bookings
+        </Text>
       </View>
 
-      {/* Content */}
+      {/* TABS (Scrollable) */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.tabsContainer}
+      >
+        {tabs.map((tab) => {
+          const isActive = selectedTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, isActive && styles.activeTab]}
+              onPress={() => setSelectedTab(tab.key)}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  isActive && styles.activeTabText,
+                ]}
+              >
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* CONTENT CARD */}
       <View style={styles.contentContainer}>{renderContent()}</View>
     </ScrollView>
   );
@@ -61,51 +78,72 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF7F8",
     paddingTop: 40,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#7A1F3D",
-    marginBottom: 16,
+
+  /* HEADER */
+  header: {
+    backgroundColor: "#7A1F3D",
+    padding: 20,
+    borderRadius: 18,
+    marginBottom: 20,
   },
-  secondaryText: {
+  headerTitle: {
     color: "#fff",
-    fontWeight: "600",
+    fontSize: 22,
+    fontWeight: "800",
   },
+  headerSubtitle: {
+    color: "#FFD6E0",
+    marginTop: 4,
+    fontSize: 13,
+  },
+
+  /* TABS */
   tabsContainer: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    gap: 10,
     marginBottom: 20,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#FADADD",
-    paddingVertical: 8,
   },
+
   tab: {
     paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderBottomWidth: 2,
-    borderBottomColor: "transparent",
-  },
-  activeTab: {
-    borderBottomColor: "#4A0E23",
-  },
-  tabText: {
-    fontSize: 13,
-    color: "#555",
-  },
-  activeTabText: {
-    color: "#4A0E23",
-    fontWeight: "bold",
-  },
-  contentContainer: {
-    padding: 16,
+    paddingHorizontal: 18,
+    borderRadius: 25,
     backgroundColor: "#fff",
-    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#FADADD",
-    minHeight: 200,
+  },
+
+  activeTab: {
+    backgroundColor: "#7A1F3D",
+    borderColor: "#7A1F3D",
+  },
+
+  tabText: {
+    fontSize: 14,
+    color: "#7A1F3D",
+    fontWeight: "500",
+  },
+
+  activeTabText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+
+  /* CONTENT */
+  contentContainer: {
+    padding: 20,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FADADD",
+    minHeight: 220,
     justifyContent: "center",
     alignItems: "center",
+  },
+
+  contentText: {
+    fontSize: 16,
+    color: "#4A0E23",
+    fontWeight: "500",
   },
 });
