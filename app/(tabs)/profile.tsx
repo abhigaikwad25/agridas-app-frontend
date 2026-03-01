@@ -44,7 +44,11 @@ export default function Profile() {
             pathname: "/dashboardFarmer",
           })} />
         <Item icon="calendar-outline" label="My Bookings" onPress={""}/>
-        <Item icon="create-outline" label="Edit Profile" onPress={""}/>
+        <Item icon="create-outline" label="Edit Profile" onPress={()=>{
+          router.push({
+            pathname:"/editProfile"
+          })
+        }}/>
         <LogoutItem icon="log-out-outline" label="Logout" danger />
       </View>
     </ScrollView>
