@@ -188,7 +188,7 @@ export default function AddMachineScreen() {
           type: "image/jpeg",
         } as any)
       );
-      console.log(data)
+      // console.log(data)
 
       const res = await fetch(API_URL, {
         method: "POST",
@@ -197,7 +197,7 @@ export default function AddMachineScreen() {
       });
 
       const result = await res.json();
-      console.log("SERVER:", result);
+      // console.log("SERVER:", result);
 
       if (!res.ok) throw new Error(result.message || "Upload failed");
 

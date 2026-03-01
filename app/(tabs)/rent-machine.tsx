@@ -44,24 +44,16 @@ export default function RentMachineScreen() {
     getLocation();
   }, []);
 
-  
   const goToMachines = (machineType: string) => {
-  if (!userLocation) {
-    alert("Fetching location... Please wait ⏳");
-    return;
-  }
+    if (!userLocation) {
+      alert("Fetching location... Please wait ⏳");
+      return;
+    }
 
-  router.push({
-    pathname: "../machines",
-    params: {
-      machineType: machineType.toLowerCase(),
-      lat: userLocation.lat,
-      long: userLocation.long,
-    },
-  });
-};
-
-
+    router.push(
+      `/machines?machineType=${machineType.toLowerCase()}&lat=${userLocation.lat}&long=${userLocation.long}`,
+    );
+  };
 
   if (loading) {
     return (

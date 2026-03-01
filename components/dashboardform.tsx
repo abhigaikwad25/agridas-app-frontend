@@ -39,7 +39,7 @@ export default function Dashboard({ apiUrlbal,apiUrl,apiUrldel, role, categories
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      console.log(data)
+      // console.log(data)
 
       setEarnings({
         totalAmt: data.totalamt || 0,
@@ -73,7 +73,7 @@ const submitExpense = async () => {
       expcategory: form.category,
     };
 
-    console.log(payload)
+    // console.log(payload)
     const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
@@ -92,7 +92,7 @@ const submitExpense = async () => {
 
     // Success
     Alert.alert("Success", "Transaction added successfully!");
-    console.log("Server response:", data);
+    // console.log("Server response:", data);
 
     // Reset form
     setForm({ ...form, description: "", amount: "" });

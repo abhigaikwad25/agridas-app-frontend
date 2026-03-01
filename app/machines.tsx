@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
@@ -31,6 +32,7 @@ export default function MachinesScreen() {
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const fetchMachines = async () => {
@@ -82,7 +84,13 @@ export default function MachinesScreen() {
       `${item.taluka}, ${item.district}, ${item.state}`;
 
     return (
-      <TouchableOpacity activeOpacity={0.95} style={styles.cardWrap}>
+      <TouchableOpacity
+      activeOpacity={0.95}
+      style={styles.cardWrap}
+      onPress={() =>
+        router.push(`/machine-details?machineId=${item._id}`)
+      }
+    >
         <View style={styles.card}>
           <ImageBackground
             source={{ uri: imageUrl }}
