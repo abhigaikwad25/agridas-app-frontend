@@ -15,6 +15,7 @@ import {
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
+import { useRouter } from "expo-router";
 import { FontAwesome5 } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
@@ -31,6 +32,7 @@ export default function MachinesScreen() {
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
     const fetchMachines = async () => {
@@ -82,7 +84,13 @@ export default function MachinesScreen() {
       `${item.taluka}, ${item.district}, ${item.state}`;
 
     return (
-      <TouchableOpacity activeOpacity={0.95} style={styles.cardWrap}>
+      <TouchableOpacity
+      activeOpacity={0.95}
+      style={styles.cardWrap}
+      onPress={() =>
+        router.push(`/machine-details?machineId=${item._id}`)
+      }
+    >
         <View style={styles.card}>
           <ImageBackground
             source={{ uri: imageUrl }}

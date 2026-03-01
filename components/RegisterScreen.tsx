@@ -91,7 +91,7 @@ export default function RegisterScreen() {
       });
 
       const data = await response.json();
-      console.log(data)
+      // console.log(data)
       if (response.ok) {
         Alert.alert("Success", data.message);
         router.replace("/");
