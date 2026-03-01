@@ -11,7 +11,10 @@ export default function Index() {
 
   useEffect(() => {
     const checkFlow = async () => {
+      const onboardingSeen = await AsyncStorage.getItem("onboarding_seen");
       const token = await AsyncStorage.getItem("authToken");
+
+      setSeenOnboarding(!!onboardingSeen);
       setIsLoggedIn(!!token);
       setLoading(false);
     };

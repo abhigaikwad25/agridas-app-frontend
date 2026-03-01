@@ -17,7 +17,7 @@ export const apiFetch = async (endpoint: string, options: any = {}) => {
   });
 
   const text = await res.text(); // 👈 debug raw response
-  console.log("RAW API RESPONSE:", text);
+  // console.log("RAW API RESPONSE:", text);
 
   let data;
   try {
