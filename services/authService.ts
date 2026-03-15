@@ -1,4 +1,4 @@
-import { API } from "@/constants/api";
+import { BASE_URL } from "@/constants/api";
 
 export interface LoginPayload {
   phoneno: string;
@@ -6,7 +6,7 @@ export interface LoginPayload {
 }
 
 export const login = async (payload: LoginPayload) => {
-  const response = await fetch(`${API.BASE_URL}/auth/login`, {
+  const response = await fetch(`${BASE_URL}/auth/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -25,7 +25,7 @@ export interface RegisterPayload {
 }
 
 export const register = async (payload: RegisterPayload) => {
-  const response = await fetch(`${API.BASE_URL}/auth/register`, {
+  const response = await fetch(`${BASE_URL}/auth/register`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

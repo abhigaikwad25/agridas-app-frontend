@@ -1,171 +1,256 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { ImageBackground, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
+const C = {
+  bg: "#F9F5F0",
+  card: "#FFFFFF",
+  primary: "#6B2737",
+  primaryFaint: "#F7EEF0",
+  accent: "#D4873A",
+  accentLight: "#FDF3E7",
+  ink: "#1C1917",
+  muted: "#78716C",
+  border: "#E8E0D8",
+  shadow: "rgba(107,39,55,0.10)",
+};
+
+const POINTS = [
+  {
+    icon: "person-circle-outline",
+    title: "One Profile, Many Jobs",
+    body: "Create your labour profile once and start receiving job requests from farmers nearby.",
+  },
+  {
+    icon: "people-outline",
+    title: "No Middlemen",
+    body: "Connect directly with farmers in your area — keep every rupee you earn.",
+  },
+  {
+    icon: "cash-outline",
+    title: "Fair & Transparent Pay",
+    body: "Agreed wages upfront, confirmed bookings, no last-minute surprises.",
+  },
+  {
+    icon: "bar-chart-outline",
+    title: "Track Your Work",
+    body: "View upcoming jobs, completed work, and total earnings from your dashboard.",
+  },
+];
 
 export default function LabourHome() {
   return (
-    <View style={styles.container}>
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.brand}>AGRIDAS • LABOUR</Text>
-        <Text style={styles.welcome}>Welcome 👋</Text>
-        <Text style={styles.headerSub}>
-          Find work nearby and earn consistently
-        </Text>
-      </View>
-
-      {/* CONTENT */}
-      <View style={styles.content}>
-        <ImageBackground
-          source={require("../../assets/images/laborimage.jpg")}
-          style={styles.image}
-          imageStyle={{ borderRadius: 18 }}
-        />
-
-        {/* TITLE BELOW IMAGE */}
-        <Text style={styles.heroTitle}>
-          Your skills deserve daily income
+    <ScrollView
+      style={s.screen}
+      contentContainerStyle={s.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* ── Hero Header ── */}
+      <View style={s.header}>
+        <View style={s.headerBadge}>
+          <Text style={s.headerBadgeText}>AGRIDAS • LABOUR PORTAL</Text>
+        </View>
+        <Text style={s.headerTitle}>Welcome{"\n"}Back 👋</Text>
+        <Text style={s.headerSub}>
+          Find work nearby and earn consistently every season
         </Text>
 
-        <Text style={styles.heroSub}>
-          Offer your labour services to nearby farmers and get paid fairly for
-          your hard work.
-        </Text>
-
-        {/* GUIDELINES */}
-        <View style={styles.card}>
-          <Point text="Create your labour profile once and get job requests" />
-          <Point text="Work with nearby farmers without middlemen" />
-          <Point text="Transparent wages and confirmed bookings" />
-          <Point text="Track jobs and earnings from your dashboard" />
+        {/* Stats strip */}
+        <View style={s.statsStrip}>
+          <View style={s.statItem}>
+            <Text style={s.statNum}>3500+</Text>
+            <Text style={s.statLabel}>Workers Registered</Text>
+          </View>
+          <View style={s.statDivider} />
+          <View style={s.statItem}>
+            <Text style={s.statNum}>12K+</Text>
+            <Text style={s.statLabel}>Jobs Completed</Text>
+          </View>
+          <View style={s.statDivider} />
+          <View style={s.statItem}>
+            <Text style={s.statNum}>500+</Text>
+            <Text style={s.statLabel}>Villages Covered</Text>
+          </View>
         </View>
       </View>
 
-      {/* BACK BUTTON */}
+      {/* ── Hero Image ── */}
+      <View style={s.imageCard}>
+        <ImageBackground
+          source={require("../../assets/images/laborimage.jpg")}
+          style={s.image}
+          imageStyle={s.imageStyle}
+        >
+          <View style={s.imageOverlay}>
+            <View style={s.imageBadge}>
+              <Ionicons name="star" size={12} color={C.accent} />
+              <Text style={s.imageBadgeText}>Workers earn ₹800–₹1500 per day</Text>
+            </View>
+          </View>
+        </ImageBackground>
+      </View>
+
+      {/* ── Tagline ── */}
+      <View style={s.taglineBlock}>
+        <Text style={s.taglineTitle}>Your skills deserve daily income</Text>
+        <Text style={s.taglineSub}>
+          Offer your labour services to nearby farmers and get paid fairly for your hard work — no waiting, no hassle.
+        </Text>
+      </View>
+
+      {/* ── Benefits Card ── */}
+      <View style={s.benefitsCard}>
+        <View style={s.benefitsHeader}>
+          <View style={s.benefitsIconWrap}>
+            <Text style={{ fontSize: 16 }}>✨</Text>
+          </View>
+          <Text style={s.benefitsTitle}>Why workers choose Agridas</Text>
+        </View>
+
+        {POINTS.map((p, i) => (
+          <View
+            key={i}
+            style={[
+              s.pointRow,
+              i === POINTS.length - 1 && { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 },
+            ]}
+          >
+            <View style={s.pointIconWrap}>
+              <Ionicons name={p.icon as any} size={20} color={C.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.pointTitle}>{p.title}</Text>
+              <Text style={s.pointBody}>{p.body}</Text>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      {/* ── CTA Banner ── */}
+      <View style={s.ctaBanner}>
+        <View style={{ flex: 1 }}>
+          <Text style={s.ctaTitle}>Ready to find work?</Text>
+          <Text style={s.ctaSub}>Register your labour profile in under 2 minutes.</Text>
+        </View>
+        <Ionicons name="arrow-forward-circle" size={36} color="#fff" style={{ opacity: 0.9 }} />
+      </View>
+
+      {/* ── Back Button ── */}
       <TouchableOpacity
-        style={styles.switchButton}
+        style={s.backBtn}
         onPress={() => router.replace("/(tabs)")}
+        activeOpacity={0.8}
       >
-        <Ionicons
-          name="arrow-back-circle-outline"
-          size={20}
-          color="#7A1F3D"
-        />
-        <Text style={styles.switchText}>Back to Buyer Home</Text>
+        <Ionicons name="arrow-back-circle-outline" size={20} color={C.primary} />
+        <Text style={s.backBtnText}>Back to Buyer Home</Text>
       </TouchableOpacity>
-    </View>
+    </ScrollView>
   );
 }
 
-function Point({ text }: { text: string }) {
-  return (
-    <View style={styles.point}>
-      <Ionicons name="checkmark-circle" size={20} color="#7A1F3D" />
-      <Text style={styles.pointText}>{text}</Text>
-    </View>
-  );
-}
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.bg },
+  container: { paddingBottom: 60 },
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F6FFF8",
-  },
-
+  // ── Header
   header: {
-    paddingTop: 56,
-    paddingBottom: 28,
+    backgroundColor: C.primary,
+    paddingTop: Platform.OS === "ios" ? 56 : 40,
+    paddingBottom: 32,
     paddingHorizontal: 24,
-    backgroundColor: "#7A1F3D",
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
   },
-
-  brand: {
-    color: "#C8E6C9",
-    fontSize: 12,
-    letterSpacing: 1,
-    marginBottom: 6,
+  headerBadge: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, marginBottom: 12,
   },
+  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
+  headerTitle: { color: "#fff", fontSize: 34, fontWeight: "800", lineHeight: 40, marginBottom: 8 },
+  headerSub: { color: "rgba(255,255,255,0.75)", fontSize: 14, lineHeight: 20, marginBottom: 24 },
 
-  welcome: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-
-  headerSub: {
-    fontSize: 14,
-    color: "#C8E6C9",
-    marginTop: 6,
-  },
-
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-
-  image: {
-    height: 180,
-    width: "100%",
-    marginBottom: 18,
-  },
-
-  heroTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1B5E20",
-    textAlign: "center",
-    marginBottom: 6,
-  },
-
-  heroSub: {
-    fontSize: 14,
-    color: "#4B5563",
-    textAlign: "center",
-    marginBottom: 18,
-    lineHeight: 20,
-  },
-
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    padding: 16,
-    elevation: 4,
-  },
-
-  point: {
+  statsStrip: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-
-  pointText: {
-    marginLeft: 10,
-    fontSize: 15,
-    color: "#1B5E20",
-    lineHeight: 22,
-    flex: 1,
-  },
-
-  switchButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 24,
-    marginBottom: 20,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    borderRadius: 16,
     paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#7A1F3D",
-    backgroundColor: "#FFF",
-    marginHorizontal: 20,
+    paddingHorizontal: 8,
   },
+  statItem: { flex: 1, alignItems: "center" },
+  statNum: { color: "#fff", fontSize: 18, fontWeight: "900" },
+  statLabel: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: "600", marginTop: 2, textAlign: "center" },
+  statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.2)" },
 
-  switchText: {
-    marginLeft: 8,
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#7A1F3D",
+  // ── Image
+  imageCard: {
+    marginHorizontal: 16,
+    marginTop: -20,
+    borderRadius: 20,
+    overflow: "hidden",
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 1,
+    shadowRadius: 14,
+    elevation: 8,
   },
+  image: { height: 210, justifyContent: "flex-end" },
+  imageStyle: { borderRadius: 20 },
+  imageOverlay: { padding: 14, backgroundColor: "rgba(0,0,0,0.25)" },
+  imageBadge: {
+    flexDirection: "row", alignItems: "center", alignSelf: "flex-start",
+    gap: 5, backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+  },
+  imageBadgeText: { fontSize: 11, fontWeight: "700", color: C.ink },
+
+  // ── Tagline
+  taglineBlock: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 4, alignItems: "center" },
+  taglineTitle: { fontSize: 22, fontWeight: "800", color: C.ink, textAlign: "center", lineHeight: 28, marginBottom: 8 },
+  taglineSub: { fontSize: 14, color: C.muted, textAlign: "center", lineHeight: 21 },
+
+  // ── Benefits
+  benefitsCard: {
+    backgroundColor: C.card, borderRadius: 20,
+    marginHorizontal: 16, marginTop: 20, padding: 20,
+    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1, shadowRadius: 12, elevation: 4,
+  },
+  benefitsHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 18 },
+  benefitsIconWrap: {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: C.accentLight, justifyContent: "center", alignItems: "center",
+  },
+  benefitsTitle: { fontSize: 16, fontWeight: "700", color: C.ink },
+  pointRow: {
+    flexDirection: "row", alignItems: "flex-start", gap: 14,
+    paddingBottom: 16, marginBottom: 16,
+    borderBottomWidth: 1, borderColor: C.border,
+  },
+  pointIconWrap: {
+    width: 40, height: 40, borderRadius: 12,
+    backgroundColor: C.primaryFaint,
+    justifyContent: "center", alignItems: "center", flexShrink: 0,
+  },
+  pointTitle: { fontSize: 14, fontWeight: "700", color: C.ink, marginBottom: 3 },
+  pointBody: { fontSize: 13, color: C.muted, lineHeight: 19 },
+
+  // ── CTA Banner
+  ctaBanner: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: C.primary,
+    marginHorizontal: 16, marginTop: 16,
+    borderRadius: 18, padding: 20,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+  },
+  ctaTitle: { color: "#fff", fontSize: 16, fontWeight: "800", marginBottom: 3 },
+  ctaSub: { color: "rgba(255,255,255,0.75)", fontSize: 12 },
+
+  // ── Back button
+  backBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
+    marginHorizontal: 16, marginTop: 16, paddingVertical: 16,
+    borderRadius: 16, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card,
+  },
+  backBtnText: { fontSize: 15, fontWeight: "700", color: C.primary },
 });

@@ -11,8 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-
-const BASE_URL = "https://agridas.onrender.com";
+import { BASE_URL } from "@/constants/api";
 
 export default function EditProfile() {
   const [name, setName] = useState("");

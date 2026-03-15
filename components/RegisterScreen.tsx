@@ -1,153 +1,351 @@
+// app/register.tsx
 import { register } from "@/services/authService";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+const C = {
+  bg: "#F0F7F2",
+  primary: "#1E7F43",
+  primaryDark: "#155C30",
+  faint: "#EAF5EE",
+  ink: "#1C1917",
+  muted: "#6B7280",
+  border: "#C9E2D4",
+  white: "#FFFFFF",
+};
+
+const ROLES = [
+  { key: "Consumer",       label: "Farmer / Buyer",    emoji: "🌾", desc: "Rent machines or hire labour" },
+  { key: "MachineOwner",   label: "Machine Owner",     emoji: "🚜", desc: "List & rent out your machines" },
+  { key: "LabourProvider", label: "Labour Provider",   emoji: "👷", desc: "Offer your team for farm work" },
+];
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
   const [phoneno, setPhoneno] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState("Consumer");
   const [loading, setLoading] = useState(false);
-  
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      justifyContent: "center",
-      padding: 20,
-      backgroundColor: "#f4f6f4",
-    },
-    logo: {
-      fontSize: 22,
-      fontWeight: "bold",
-      color: "#1e7f43",
-      textAlign: "center",
-    },
-    title: {
-      textAlign: "center",
-      marginVertical: 15,
-      fontSize: 16,
-      fontWeight: "600",
-    },
-    input: {
-      borderWidth: 1,
-      borderRadius: 10,
-      height: 45,
-      paddingHorizontal: 10,
-      marginBottom: 15,
-    },
-    row: {
-      flexDirection: "row",
-      alignItems: "center",
-      borderWidth: 1,
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      marginBottom: 15,
-    },
-    phoneInput: {
-      flex: 1,
-      height: 45,
-      marginLeft: 8,
-    },
-    btn: {
-      backgroundColor: "#1e7f43",
-      padding: 14,
-      borderRadius: 10,
-    },
-    btnText: {
-      color: "#fff",
-      textAlign: "center",
-      fontWeight: "600",
-    },
-    link: {
-      marginTop: 15,
-      textAlign: "center",
-      color: "#1e7f43",
-    },
-  });
 
+  const [nameFocused, setNameFocused] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
+  const [passFocused, setPassFocused] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !phoneno || !password) {
-      Alert.alert("Error", "All fields are required");
+      Alert.alert("Missing fields", "Please fill in all fields to continue.");
       return;
     }
-
     try {
       setLoading(true);
-
-      const response = await register({
-        name,
-        phoneno,
-        password,
-        role,
-      });
-
+      const response = await register({ name, phoneno, password, role });
       const data = await response.json();
-      // console.log(data)
       if (response.ok) {
-        Alert.alert("Success", data.message);
-        router.replace("/");
+        Alert.alert("Account Created! 🎉", data.message || "Welcome to Agridas!", [
+          { text: "Sign In", onPress: () => router.replace("/") },
+        ]);
       } else {
-        Alert.alert("Registration failed", data.message || "Try again");
+        Alert.alert("Registration Failed", data.message || "Please try again.");
       }
-    } catch (err) {
-      Alert.alert("Error", "Backend not reachable");
+    } catch {
+      Alert.alert("Error", "Could not reach the server. Try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.logo}>Agridas</Text>
-      <Text style={styles.title}>Create Account</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Full Name"
-        value={name}
-        onChangeText={setName}
-      />
-
-      <View style={styles.row}>
-        <Text>+91</Text>
-        <TextInput
-          style={styles.phoneInput}
-          placeholder="Mobile Number"
-          keyboardType="number-pad"
-          value={phoneno}
-          onChangeText={setPhoneno}
-        />
-      </View>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Password"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity style={styles.btn} onPress={handleRegister}>
-        <Text style={styles.btnText}>
-          {loading ? "Creating..." : "Register"}
-        </Text>
-      </TouchableOpacity>
-
-      <Text
-        style={styles.link}
-        onPress={() => router.replace("/")}
+    <KeyboardAvoidingView
+      style={s.screen}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+    >
+      <ScrollView
+        contentContainerStyle={s.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        Already have an account? Login
-      </Text>
-    </View>
+
+        {/* ── Blob header ── */}
+        <View style={s.blob}>
+          <View style={s.blobCircle1} />
+          <View style={s.blobCircle2} />
+
+          <View style={s.brandRow}>
+            <View style={s.leafBadge}>
+              <Text style={s.leafEmoji}>🌿</Text>
+            </View>
+            <Text style={s.brandName}>agridas</Text>
+          </View>
+
+          <Text style={s.heroText}>Join the{"\n"}community!</Text>
+          <Text style={s.heroSub}>Create your account and get started in minutes</Text>
+        </View>
+
+        {/* ── Form ── */}
+        <View style={s.form}>
+
+          {/* Full Name */}
+          <View style={s.fieldWrap}>
+            <Text style={s.fieldLabel}>Full Name</Text>
+            <View style={[s.fieldRow, nameFocused && s.fieldRowFocused]}>
+              <View style={s.iconWrap}>
+                <Ionicons name="person-outline" size={17} color={nameFocused ? C.primary : C.muted} />
+              </View>
+              <View style={s.fieldSep} />
+              <TextInput
+                style={s.fieldInput}
+                placeholder="e.g. Rajesh Patil"
+                placeholderTextColor={C.muted}
+                value={name}
+                onChangeText={setName}
+                onFocus={() => setNameFocused(true)}
+                onBlur={() => setNameFocused(false)}
+              />
+            </View>
+          </View>
+
+          {/* Phone */}
+          <View style={s.fieldWrap}>
+            <Text style={s.fieldLabel}>Mobile Number</Text>
+            <View style={[s.fieldRow, phoneFocused && s.fieldRowFocused]}>
+              <View style={s.prefixWrap}>
+                <Text style={s.prefixText}>🇮🇳 +91</Text>
+              </View>
+              <View style={s.fieldSep} />
+              <TextInput
+                style={s.fieldInput}
+                placeholder="9876543210"
+                placeholderTextColor={C.muted}
+                keyboardType="number-pad"
+                maxLength={10}
+                value={phoneno}
+                onChangeText={setPhoneno}
+                onFocus={() => setPhoneFocused(true)}
+                onBlur={() => setPhoneFocused(false)}
+              />
+            </View>
+          </View>
+
+          {/* Password */}
+          <View style={s.fieldWrap}>
+            <Text style={s.fieldLabel}>Password</Text>
+            <View style={[s.fieldRow, passFocused && s.fieldRowFocused]}>
+              <View style={s.iconWrap}>
+                <Ionicons name="lock-closed-outline" size={17} color={passFocused ? C.primary : C.muted} />
+              </View>
+              <View style={s.fieldSep} />
+              <TextInput
+                style={[s.fieldInput, { flex: 1 }]}
+                placeholder="Create a password"
+                placeholderTextColor={C.muted}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setPassFocused(true)}
+                onBlur={() => setPassFocused(false)}
+              />
+              <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPassword(v => !v)}>
+                <Ionicons
+                  name={showPassword ? "eye-off-outline" : "eye-outline"}
+                  size={18}
+                  color={C.muted}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Role selector */}
+          <View style={s.fieldWrap}>
+            <Text style={s.fieldLabel}>I am a…</Text>
+            <View style={s.roleGrid}>
+              {ROLES.map((r) => {
+                const active = role === r.key;
+                return (
+                  <TouchableOpacity
+                    key={r.key}
+                    style={[s.roleCard, active && s.roleCardActive]}
+                    onPress={() => setRole(r.key)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={s.roleEmoji}>{r.emoji}</Text>
+                    <Text style={[s.roleLabel, active && s.roleLabelActive]}>{r.label}</Text>
+                    <Text style={[s.roleDesc, active && s.roleDescActive]}>{r.desc}</Text>
+                    {active && (
+                      <View style={s.roleCheck}>
+                        <Ionicons name="checkmark" size={10} color="#fff" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Register button */}
+          <TouchableOpacity
+            style={[s.registerBtn, loading && { opacity: 0.75 }]}
+            onPress={handleRegister}
+            activeOpacity={0.88}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={s.registerBtnText}>Create Account</Text>
+                <View style={s.registerArrow}>
+                  <Ionicons name="arrow-forward" size={16} color={C.primary} />
+                </View>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Login link */}
+          <View style={s.loginRow}>
+            <Text style={s.loginLabel}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => router.replace("/")}>
+              <Text style={s.loginLink}>Sign in →</Text>
+            </TouchableOpacity>
+          </View>
+
+        </View>
+
+        {/* ── Trust strip ── */}
+        <View style={s.trust}>
+          {[
+            { icon: "shield-checkmark-outline", text: "Secure" },
+            { icon: "people-outline",           text: "500+ Farmers" },
+            { icon: "star-outline",             text: "4.8 Rated" },
+          ].map((item, i) => (
+            <View key={i} style={s.trustItem}>
+              <Ionicons name={item.icon as any} size={13} color={C.primary} />
+              <Text style={s.trustText}>{item.text}</Text>
+            </View>
+          ))}
+        </View>
+
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
+
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.bg },
+  scroll: { flexGrow: 1 },
+
+  // Blob
+  blob: {
+    backgroundColor: C.primary,
+    paddingTop: Platform.OS === "ios" ? 64 : 52,
+    paddingBottom: 52,
+    paddingHorizontal: 28,
+    borderBottomLeftRadius: 48,
+    borderBottomRightRadius: 48,
+    overflow: "hidden",
+  },
+  blobCircle1: {
+    position: "absolute", width: 180, height: 180, borderRadius: 90,
+    backgroundColor: "rgba(255,255,255,0.06)", top: -40, right: -40,
+  },
+  blobCircle2: {
+    position: "absolute", width: 120, height: 120, borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.05)", bottom: 10, right: 60,
+  },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 24 },
+  leafBadge: {
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.18)",
+    justifyContent: "center", alignItems: "center",
+  },
+  leafEmoji: { fontSize: 20 },
+  brandName: { fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: 1.5 },
+  heroText: { fontSize: 38, fontWeight: "900", color: "#fff", lineHeight: 44, marginBottom: 8 },
+  heroSub: { fontSize: 14, color: "rgba(255,255,255,0.72)", lineHeight: 20 },
+
+  // Form
+  form: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 },
+
+  fieldWrap: { marginBottom: 20 },
+  fieldLabel: { fontSize: 13, fontWeight: "700", color: C.ink, marginBottom: 8, marginLeft: 2 },
+
+  fieldRow: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: C.white, borderRadius: 16,
+    borderWidth: 1.5, borderColor: C.border,
+    overflow: "hidden", height: 54,
+  },
+  fieldRowFocused: {
+    borderColor: C.primary,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15, shadowRadius: 8, elevation: 3,
+  },
+  prefixWrap: { paddingHorizontal: 14, justifyContent: "center" },
+  prefixText: { fontSize: 14, fontWeight: "700", color: C.ink },
+  iconWrap: { paddingHorizontal: 14, justifyContent: "center" },
+  fieldSep: { width: 1, height: 24, backgroundColor: C.border },
+  fieldInput: { flex: 1, paddingHorizontal: 14, fontSize: 15, color: C.ink, height: "100%" },
+  eyeBtn: { paddingHorizontal: 14, justifyContent: "center" },
+
+  // Role selector
+  roleGrid: { flexDirection: "column", gap: 10 },
+  roleCard: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: C.white, borderRadius: 16,
+    borderWidth: 1.5, borderColor: C.border,
+    padding: 14, gap: 12, position: "relative",
+  },
+  roleCardActive: {
+    borderColor: C.primary, backgroundColor: C.faint,
+  },
+  roleEmoji: { fontSize: 24 },
+  roleLabel: { fontSize: 14, fontWeight: "700", color: C.ink },
+  roleLabelActive: { color: C.primary },
+  roleDesc: { fontSize: 12, color: C.muted, flex: 1 },
+  roleDescActive: { color: C.primary, opacity: 0.75 },
+  roleCheck: {
+    position: "absolute", top: 10, right: 10,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: C.primary,
+    justifyContent: "center", alignItems: "center",
+  },
+
+  // Button
+  registerBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 10, backgroundColor: C.primary,
+    height: 56, borderRadius: 18,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32, shadowRadius: 16, elevation: 8,
+    marginBottom: 24, marginTop: 4,
+  },
+  registerBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
+  registerArrow: {
+    width: 28, height: 28, borderRadius: 14,
+    backgroundColor: "#fff",
+    justifyContent: "center", alignItems: "center",
+  },
+
+  // Login link
+  loginRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 32 },
+  loginLabel: { fontSize: 14, color: C.muted },
+  loginLink: { fontSize: 14, fontWeight: "800", color: C.primary },
+
+  // Trust
+  trust: { flexDirection: "row", justifyContent: "center", gap: 20, paddingBottom: 32 },
+  trustItem: { flexDirection: "row", alignItems: "center", gap: 5 },
+  trustText: { fontSize: 12, color: C.muted, fontWeight: "500" },
+});

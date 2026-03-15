@@ -1,4 +1,5 @@
-import { getToken } from "@/services/authStorage";
+import { BASE_URL } from "@/constants/api";
+import { getLocationList, getToken } from "@/services/authStorage";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -9,12 +10,19 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  FlatList,
+  Platform,
 } from "react-native";
 
-const API_URL = "https://agridas.onrender.com/laborProvider/register";
-const LOCATION_API = "https://agridas.onrender.com/location/list";
-
 const CROPS = ["Rice", "Cotton", "Wheat", "Soybean", "Sugarcane"];
+
+const CROP_ICONS: Record<string, string> = {
+  Rice: "🌾",
+  Cotton: "🌿",
+  Wheat: "🌻",
+  Soybean: "🫘",
+  Sugarcane: "🎋",
+};
 
 enum LabourSkill {
   Harvesting = "harvesting",
@@ -24,10 +32,45 @@ enum LabourSkill {
   DroneOperator = "drone_operator",
 }
 
+const SKILL_ICONS: Record<string, string> = {
+  harvesting: "🌾",
+  sowing: "🌱",
+  spraying: "💧",
+  driver: "🚜",
+  drone_operator: "🚁",
+};
+
+const SKILL_LABELS: Record<string, string> = {
+  harvesting: "Harvesting",
+  sowing: "Sowing",
+  spraying: "Spraying",
+  driver: "Driver",
+  drone_operator: "Drone Op.",
+};
+
+// ─── Colours ────────────────────────────────────────────────────────────────
+const C = {
+  bg: "#F9F5F0",
+  card: "#FFFFFF",
+  primary: "#6B2737",
+  primaryLight: "#9B3E52",
+  primaryFaint: "#F7EEF0",
+  accent: "#D4873A",
+  accentLight: "#FDF3E7",
+  ink: "#1C1917",
+  muted: "#78716C",
+  border: "#E8E0D8",
+  inputBg: "#FEFCFB",
+  success: "#2D6A4F",
+  shadow: "rgba(107,39,55,0.10)",
+};
+
 export default function AddLabourScreen() {
   const [locations, setLocations] = useState<any[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
+  const [filteredLocations, setFilteredLocations] = useState<any[]>([]);
+  const [search, setSearch] = useState("");
 
   const [form, setForm] = useState({
     taluka: "",
@@ -45,36 +88,38 @@ export default function AddLabourScreen() {
   });
 
   const resetForm = () => {
-  setForm({
-    taluka: "",
-    district: "",
-    state: "",
-    pincode: "",
-    description: "",
-    ownerPhoneno: "",
-    numberOfWorkers: "",
-    pricePerDay: "",
-    pricePerHour: "",
-    deliveryChargePerKm: "",
-    crops: [],
-    skills: [],
-  });
-
-  setSelectedLocation(null);
-};
-
-  /* 📍 FETCH LOCATIONS */
-  const fetchLocations = async () => {
-    if (locations.length) return;
-    const token = await getToken();
-    const res = await fetch(LOCATION_API, {
-      headers: { Authorization: `Bearer ${token}` },
+    setForm({
+      taluka: "",
+      district: "",
+      state: "",
+      pincode: "",
+      description: "",
+      ownerPhoneno: "",
+      numberOfWorkers: "",
+      pricePerDay: "",
+      pricePerHour: "",
+      deliveryChargePerKm: "",
+      crops: [],
+      skills: [],
     });
-    const data = await res.json();
-    setLocations(data);
+    setSelectedLocation(null);
   };
 
-  /* 🔁 MULTI SELECT */
+  useEffect(() => {
+    if (!search) { setFilteredLocations(locations); return; }
+    const lower = search.toLowerCase();
+    setFilteredLocations(
+      locations.filter((l) => l.taluka.toLowerCase().includes(lower))
+    );
+  }, [search, locations]);
+
+  const fetchLocations = async () => {
+    if (locations.length) return;
+    const data = await getLocationList();
+    setLocations(data);
+    setFilteredLocations(data);
+  };
+
   const toggleMulti = (key: "skills" | "crops", value: string) => {
     setForm((prev) => ({
       ...prev,
@@ -84,15 +129,9 @@ export default function AddLabourScreen() {
     }));
   };
 
-  /* 🚀 SUBMIT */
   const submitLabour = async () => {
-    if (!selectedLocation) {
-      Alert.alert("Error", "Please select location");
-      return;
-    }
-
+    if (!selectedLocation) { Alert.alert("Error", "Please select location"); return; }
     const token = await getToken();
-
     const payload = {
       taluka: form.taluka,
       district: form.district,
@@ -104,273 +143,616 @@ export default function AddLabourScreen() {
       pricePerDay: Number(form.pricePerDay),
       pricePerHour: form.pricePerHour ? Number(form.pricePerHour) : undefined,
       deliveryChargePerKm: Number(form.deliveryChargePerKm),
-      skills: form.skills,        // ✅ ARRAY
-      crops: form.crops,           // ✅ ARRAY
-      locationId: selectedLocation._id, // ✅ REQUIRED
+      skills: form.skills,
+      crops: form.crops,
+      locationId: selectedLocation._id,
     };
-
-    console.log("SENDING PAYLOAD:", payload);
-
-    const res = await fetch(API_URL, {
+    const res = await fetch(`${BASE_URL}/laborProvider/register`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-
     const result = await res.json();
-    console.log("API RESPONSE:", result);
-
-    if (!res.ok) {
-      Alert.alert("Error", JSON.stringify(result));
-      return;
-    }
-
-    Alert.alert("Success", "Labour added successfully");
+    if (!res.ok) { Alert.alert("Error", JSON.stringify(result)); return; }
+    Alert.alert("Success", "Labour provider added successfully! 🎉");
     resetForm();
-    
   };
 
-  /* 🧩 CHECKBOX GRID */
-  const CheckboxGrid = ({
-    data,
-    selected,
-    onToggle,
-  }: {
-    data: string[];
-    selected: string[];
-    onToggle: (v: string) => void;
-  }) => (
-    <View style={styles.grid}>
-      {data.map((item) => {
-        const active = selected.includes(item);
-        return (
-          <TouchableOpacity
-            key={item}
-            style={[styles.gridItem, active && styles.gridItemSelected]}
-            onPress={() => onToggle(item)}
-          >
-            <Text style={{ color: active ? "#fff" : "#7A1F3D" }}>{item}</Text>
-          </TouchableOpacity>
-        );
-      })}
+  // ─── Sub-components ────────────────────────────────────────────────────────
+
+  const SectionHeader = ({ icon, title, subtitle }: { icon: string; title: string; subtitle?: string }) => (
+    <View style={s.sectionHeader}>
+      <View style={s.sectionIconWrap}>
+        <Text style={s.sectionIcon}>{icon}</Text>
+      </View>
+      <View>
+        <Text style={s.sectionTitle}>{title}</Text>
+        {subtitle && <Text style={s.sectionSub}>{subtitle}</Text>}
+      </View>
     </View>
   );
 
+  const FieldLabel = ({ label, required }: { label: string; required?: boolean }) => (
+    <Text style={s.label}>
+      {label}{required && <Text style={{ color: C.accent }}> *</Text>}
+    </Text>
+  );
+
+  const PricingCard = ({
+    icon, label, value, onChangeText, hint,
+  }: {
+    icon: string; label: string; value: string;
+    onChangeText: (v: string) => void; hint?: string;
+  }) => (
+    <View style={s.pricingCard}>
+      <Text style={s.pricingIcon}>{icon}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={s.pricingLabel}>{label}</Text>
+        {hint && <Text style={s.pricingHint}>{hint}</Text>}
+      </View>
+      <TextInput
+        style={s.pricingInput}
+        keyboardType="number-pad"
+        value={value}
+        onChangeText={onChangeText}
+        placeholder="0"
+        placeholderTextColor={C.muted}
+      />
+    </View>
+  );
+
+  const SkillChip = ({ value }: { value: string }) => {
+    const active = form.skills.includes(value);
+    return (
+      <TouchableOpacity
+        style={[s.skillChip, active && s.skillChipActive]}
+        onPress={() => toggleMulti("skills", value)}
+        activeOpacity={0.75}
+      >
+        <Text style={s.skillChipIcon}>{SKILL_ICONS[value]}</Text>
+        <Text style={[s.skillChipText, active && s.skillChipTextActive]}>
+          {SKILL_LABELS[value]}
+        </Text>
+        {active && <Text style={s.skillCheck}>✓</Text>}
+      </TouchableOpacity>
+    );
+  };
+
+  const CropTile = ({ name }: { name: string }) => {
+    const active = form.crops.includes(name);
+    return (
+      <TouchableOpacity
+        style={[s.cropTile, active && s.cropTileActive]}
+        onPress={() => toggleMulti("crops", name)}
+        activeOpacity={0.75}
+      >
+        <Text style={s.cropIcon}>{CROP_ICONS[name]}</Text>
+        <Text style={[s.cropName, active && s.cropNameActive]}>{name}</Text>
+        {active && (
+          <View style={s.cropCheckDot}>
+            <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>✓</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>👷 Add Labour Provider</Text>
+      <ScrollView
+        style={s.screen}
+        contentContainerStyle={s.container}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* ── Header ── */}
+        <View style={s.header}>
+          <View style={s.headerBadge}>
+            <Text style={s.headerBadgeText}>PROVIDER REGISTRATION</Text>
+          </View>
+          <Text style={s.headerTitle}>Add Labour{"\n"}Provider</Text>
+          <Text style={s.headerSub}>
+            Fill in the details to register a new agricultural labour provider.
+          </Text>
+        </View>
 
-        {/* 📍 Location Section */}
-        <Text style={styles.section}>Location Details</Text>
+        {/* ── Location Card ── */}
+        <View style={s.card}>
+          <SectionHeader icon="📍" title="Location Details" subtitle="Where are the workers based?" />
 
-        <Text style={styles.label}>Taluka</Text>
-        <TouchableOpacity
-          style={styles.dropdown}
-          onPress={() => {
-            fetchLocations();
-            setShowLocationModal(true);
-          }}
-        >
-          <Text>{form.taluka || "Select Taluka"}</Text>
+          <FieldLabel label="Taluka" required />
+          <TouchableOpacity
+            style={[s.dropdownBtn, selectedLocation && s.dropdownBtnFilled]}
+            onPress={() => { fetchLocations(); setShowLocationModal(true); }}
+            activeOpacity={0.8}
+          >
+            <Text style={[s.dropdownText, !form.taluka && { color: C.muted }]}>
+              {form.taluka || "Select Taluka"}
+            </Text>
+            <Text style={s.dropdownChevron}>›</Text>
+          </TouchableOpacity>
+
+          <View style={s.row}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <FieldLabel label="District" />
+              <TextInput style={[s.input, s.inputDisabled]} value={form.district}
+                editable={false} placeholder="Auto-filled" placeholderTextColor={C.muted} />
+            </View>
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <FieldLabel label="State" />
+              <TextInput style={[s.input, s.inputDisabled]} value={form.state}
+                editable={false} placeholder="Auto-filled" placeholderTextColor={C.muted} />
+            </View>
+          </View>
+
+          <FieldLabel label="Pincode" />
+          <TextInput
+            style={s.input}
+            keyboardType="number-pad"
+            value={form.pincode}
+            onChangeText={(v) => setForm({ ...form, pincode: v })}
+            placeholder="e.g. 400001"
+            placeholderTextColor={C.muted}
+            maxLength={6}
+          />
+        </View>
+
+        {/* ── Contact Card ── */}
+        <View style={s.card}>
+          <SectionHeader icon="📞" title="Contact Details" />
+          <FieldLabel label="Owner Phone Number" required />
+          <View style={s.phoneRow}>
+            <View style={s.phonePrefix}>
+              <Text style={s.phonePrefixText}>+91</Text>
+            </View>
+            <TextInput
+              style={[s.input, { flex: 1, marginBottom: 0 }]}
+              keyboardType="number-pad"
+              value={form.ownerPhoneno}
+              onChangeText={(v) => setForm({ ...form, ownerPhoneno: v })}
+              placeholder="9876543210"
+              placeholderTextColor={C.muted}
+              maxLength={10}
+            />
+          </View>
+
+          <View style={[s.row, { marginTop: 14 }]}>
+            <View style={{ flex: 1, marginRight: 8 }}>
+              <FieldLabel label="No. of Workers" required />
+              <View style={s.workerCountRow}>
+                <TouchableOpacity
+                  style={s.counterBtn}
+                  onPress={() => {
+                    const n = Math.max(0, Number(form.numberOfWorkers) - 1);
+                    setForm({ ...form, numberOfWorkers: String(n) });
+                  }}
+                >
+                  <Text style={s.counterBtnText}>−</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={s.counterInput}
+                  keyboardType="number-pad"
+                  value={form.numberOfWorkers}
+                  onChangeText={(v) => setForm({ ...form, numberOfWorkers: v })}
+                  placeholder="0"
+                  placeholderTextColor={C.muted}
+                  textAlign="center"
+                />
+                <TouchableOpacity
+                  style={s.counterBtn}
+                  onPress={() => {
+                    const n = Number(form.numberOfWorkers) + 1;
+                    setForm({ ...form, numberOfWorkers: String(n) });
+                  }}
+                >
+                  <Text style={s.counterBtnText}>+</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* ── Pricing Card ── */}
+        <View style={s.card}>
+          <SectionHeader icon="💰" title="Pricing" subtitle="Set rates for your workers" />
+          <PricingCard
+            icon="📅" label="Per Day Rate" hint="₹ / day"
+            value={form.pricePerDay}
+            onChangeText={(v) => setForm({ ...form, pricePerDay: v })}
+          />
+          <PricingCard
+            icon="⏱️" label="Per Hour Rate" hint="₹ / hr (optional)"
+            value={form.pricePerHour}
+            onChangeText={(v) => setForm({ ...form, pricePerHour: v })}
+          />
+          <PricingCard
+            icon="🛣️" label="Travel Charge" hint="₹ / km"
+            value={form.deliveryChargePerKm}
+            onChangeText={(v) => setForm({ ...form, deliveryChargePerKm: v })}
+          />
+        </View>
+
+        {/* ── Skills Card ── */}
+        <View style={s.card}>
+          <SectionHeader icon="🛠️" title="Skills" subtitle="Select all that apply" />
+          <View style={s.skillGrid}>
+            {Object.values(LabourSkill).map((v) => <SkillChip key={v} value={v} />)}
+          </View>
+          {form.skills.length > 0 && (
+            <View style={s.selectionPill}>
+              <Text style={s.selectionPillText}>
+                {form.skills.length} skill{form.skills.length > 1 ? "s" : ""} selected
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* ── Crops Card ── */}
+        <View style={s.card}>
+          <SectionHeader icon="🌾" title="Supported Crops" subtitle="Which crops can your team work with?" />
+          <View style={s.cropGrid}>
+            {CROPS.map((c) => <CropTile key={c} name={c} />)}
+          </View>
+        </View>
+
+        {/* ── Description Card ── */}
+        <View style={s.card}>
+          <SectionHeader icon="📝" title="Description" subtitle="Any additional info about your team" />
+          <TextInput
+            style={s.textarea}
+            multiline
+            numberOfLines={4}
+            value={form.description}
+            onChangeText={(v) => setForm({ ...form, description: v })}
+            placeholder="e.g. Experienced team of harvesters, available throughout Kharif season..."
+            placeholderTextColor={C.muted}
+            textAlignVertical="top"
+          />
+          <Text style={s.charCount}>{form.description.length} / 500</Text>
+        </View>
+
+        {/* ── Submit ── */}
+        <TouchableOpacity style={s.submitBtn} onPress={submitLabour} activeOpacity={0.85}>
+          <Text style={s.submitText}>Register Labour Provider</Text>
+          <Text style={s.submitArrow}>→</Text>
         </TouchableOpacity>
 
-        <Text style={styles.label}>District</Text>
-        <TextInput style={styles.input} value={form.district} editable={false} />
-
-        <Text style={styles.label}>State</Text>
-        <TextInput style={styles.input} value={form.state} editable={false} />
-
-        <Text style={styles.label}>Pincode</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="number-pad"
-          value={form.pincode}
-          onChangeText={(v) => setForm({ ...form, pincode: v })}
-        />
-
-        {/* 📞 Contact Section */}
-        <Text style={styles.section}>Contact & Pricing</Text>
-
-        <Text style={styles.label}>Owner Phone Number</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="number-pad"
-          value={form.ownerPhoneno}
-          onChangeText={(v) => setForm({ ...form, ownerPhoneno: v })}
-        />
-
-        <Text style={styles.label}>Number of Workers</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="number-pad"
-          value={form.numberOfWorkers}
-          onChangeText={(v) => setForm({ ...form, numberOfWorkers: v })}
-        />
-
-        <Text style={styles.label}>Price Per Day</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="number-pad"
-          value={form.pricePerDay}
-          onChangeText={(v) => setForm({ ...form, pricePerDay: v })}
-        />
-
-        <Text style={styles.label}>Price Per Hour</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="number-pad"
-          value={form.pricePerHour}
-          onChangeText={(v) => setForm({ ...form, pricePerHour: v })}
-        />
-
-        <Text style={styles.label}>Delivery Charge per Km</Text>
-        <TextInput
-          style={styles.input}
-          keyboardType="number-pad"
-          value={form.deliveryChargePerKm}
-          onChangeText={(v) => setForm({ ...form, deliveryChargePerKm: v })}
-        />
-
-        {/* 🧠 Skills */}
-        <Text style={styles.section}>Skills</Text>
-        <CheckboxGrid
-          data={Object.values(LabourSkill)}
-          selected={form.skills}
-          onToggle={(v) => toggleMulti("skills", v)}
-        />
-
-        {/* 🌾 Crops */}
-        <Text style={styles.section}>Supported Crops</Text>
-        <CheckboxGrid
-          data={CROPS}
-          selected={form.crops}
-          onToggle={(v) => toggleMulti("crops", v)}
-        />
-
-        {/* 📝 Description */}
-        <Text style={styles.section}>Description</Text>
-        <TextInput
-          style={[styles.input, { height: 80 }]}
-          multiline
-          value={form.description}
-          onChangeText={(v) => setForm({ ...form, description: v })}
-        />
-
-        <TouchableOpacity style={styles.submitBtn} onPress={submitLabour}>
-          <Text style={{ color: "#fff", fontWeight: "700" }}>Submit Labour</Text>
+        <TouchableOpacity onPress={resetForm} style={s.resetBtn}>
+          <Text style={s.resetText}>Clear all fields</Text>
         </TouchableOpacity>
+
       </ScrollView>
 
-      {/* 📍 LOCATION MODAL */}
+      {/* ─── Location Modal ──────────────────────────────────────────────────── */}
       <Modal visible={showLocationModal} transparent animationType="slide">
         <TouchableOpacity
-          style={styles.modalOverlay}
+          style={s.modalOverlay}
+          activeOpacity={1}
           onPress={() => setShowLocationModal(false)}
         />
+        <View style={s.modalSheet}>
+          <View style={s.modalHandle} />
+          <Text style={s.modalTitle}>Select Taluka</Text>
+          <Text style={s.modalSub}>Search by taluka name</Text>
 
-        <View style={styles.modalCard}>
-          <Text style={styles.modalTitle}>Select Taluka</Text>
+          <View style={s.searchRow}>
+            <Text style={s.searchIcon}>🔍</Text>
+            <TextInput
+              placeholder="e.g. Pune, Nashik…"
+              value={search}
+              onChangeText={setSearch}
+              style={s.searchInput}
+              placeholderTextColor={C.muted}
+              autoFocus
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch("")}>
+                <Text style={{ color: C.muted, fontSize: 18, paddingHorizontal: 8 }}>×</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-          <ScrollView>
-            {locations.map((l) => (
+          {filteredLocations.length === 0 && (
+            <View style={s.emptyState}>
+              <Text style={{ fontSize: 32 }}>🗺️</Text>
+              <Text style={s.emptyText}>No results found</Text>
+            </View>
+          )}
+
+          <FlatList
+            data={filteredLocations}
+            keyExtractor={(item) => item._id}
+            initialNumToRender={15}
+            keyboardShouldPersistTaps="handled"
+            style={{ marginTop: 8 }}
+            renderItem={({ item }) => (
               <TouchableOpacity
-                key={l._id}
-                style={styles.option}
+                style={[
+                  s.locationRow,
+                  selectedLocation?._id === item._id && s.locationRowActive,
+                ]}
                 onPress={() => {
-                  setSelectedLocation(l);
-                  setForm({
-                    ...form,
-                    taluka: l.taluka,
-                    district: l.district,
-                    state: l.state,
-                  });
+                  setSelectedLocation(item);
+                  setForm({ ...form, taluka: item.taluka, district: item.district, state: item.state });
                   setShowLocationModal(false);
                 }}
               >
-                <Text style={styles.optionTitle}>{l.taluka}</Text>
-                <Text style={styles.optionSub}>
-                  {l.district}, {l.state}
-                </Text>
+                <View style={s.locationDot} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.locationTitle}>{item.taluka}</Text>
+                  <Text style={s.locationSub}>{item.district}, {item.state}</Text>
+                </View>
+                {selectedLocation?._id === item._id && (
+                  <Text style={{ color: C.primary, fontWeight: "700" }}>✓</Text>
+                )}
               </TouchableOpacity>
-            ))}
-          </ScrollView>
+            )}
+          />
         </View>
       </Modal>
     </>
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.bg },
+  container: { paddingBottom: 100 },
 
-const styles = StyleSheet.create({
-  container: { padding: 20, paddingBottom: 80 },
-  title: { fontSize: 24, fontWeight: "800", marginBottom: 20 },
+  // ── Header
+  header: {
+    backgroundColor: C.primary,
+    paddingTop: Platform.OS === "ios" ? 56 : 40,
+    paddingBottom: 36,
+    paddingHorizontal: 24,
+  },
+  headerBadge: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 12,
+  },
+  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
+  headerTitle: { color: "#fff", fontSize: 34, fontWeight: "800", lineHeight: 40, marginBottom: 8 },
+  headerSub: { color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 18 },
 
-  section: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: 20,
-    marginBottom: 10,
-    color: "#7A1F3D",
+  // ── Card
+  card: {
+    backgroundColor: C.card,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 20,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
-  label: { fontSize: 14, fontWeight: "600", marginBottom: 6 },
+  // ── Section Header
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
+  sectionIconWrap: {
+    width: 38, height: 38, borderRadius: 10,
+    backgroundColor: C.primaryFaint,
+    justifyContent: "center", alignItems: "center",
+    marginRight: 12,
+  },
+  sectionIcon: { fontSize: 18 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: C.ink },
+  sectionSub: { fontSize: 12, color: C.muted, marginTop: 1 },
 
+  // ── Label
+  label: { fontSize: 13, fontWeight: "600", color: C.ink, marginBottom: 6 },
+
+  // ── Input
   input: {
-    backgroundColor: "#fff",
-    padding: 14,
+    backgroundColor: C.inputBg,
+    borderWidth: 1.5,
+    borderColor: C.border,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: C.ink,
+    marginBottom: 14,
+  },
+  inputDisabled: { backgroundColor: "#F5F3F0", color: C.muted },
+
+  // ── Row
+  row: { flexDirection: "row" },
+
+  // ── Dropdown
+  dropdownBtn: {
+    backgroundColor: C.inputBg,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  dropdownBtnFilled: { borderColor: C.primary, backgroundColor: C.primaryFaint },
+  dropdownText: { fontSize: 15, color: C.ink, fontWeight: "500" },
+  dropdownChevron: { fontSize: 22, color: C.muted, marginTop: -2 },
+
+  // ── Phone
+  phoneRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  phonePrefix: {
+    backgroundColor: C.primaryFaint,
+    borderWidth: 1.5, borderColor: C.border,
+    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+  },
+  phonePrefixText: { fontSize: 15, fontWeight: "700", color: C.primary },
+
+  // ── Worker Counter
+  workerCountRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderColor: C.border, borderRadius: 12, overflow: "hidden" },
+  counterBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.primaryFaint },
+  counterBtnText: { fontSize: 20, fontWeight: "700", color: C.primary },
+  counterInput: { flex: 1, fontSize: 18, fontWeight: "700", color: C.ink, paddingVertical: 10, backgroundColor: C.inputBg },
+
+  // ── Pricing
+  pricingCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEFCFB",
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+    gap: 10,
+  },
+  pricingIcon: { fontSize: 22 },
+  pricingLabel: { fontSize: 14, fontWeight: "600", color: C.ink },
+  pricingHint: { fontSize: 11, color: C.muted, marginTop: 1 },
+  pricingInput: {
+    width: 90,
+    backgroundColor: C.primaryFaint,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 16,
+    fontWeight: "700",
+    color: C.primary,
+    textAlign: "right",
   },
 
-  dropdown: {
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    marginBottom: 12,
-  },
-
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  gridItem: {
+  // ── Skills
+  skillGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  skillChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderWidth: 1,
+    borderRadius: 50,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.inputBg,
+  },
+  skillChipActive: { backgroundColor: C.primary, borderColor: C.primary },
+  skillChipIcon: { fontSize: 15 },
+  skillChipText: { fontSize: 13, fontWeight: "600", color: C.muted },
+  skillChipTextActive: { color: "#fff" },
+  skillCheck: { color: "#fff", fontSize: 12, fontWeight: "800" },
+  selectionPill: {
+    marginTop: 14,
+    alignSelf: "flex-start",
+    backgroundColor: C.accentLight,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     borderRadius: 20,
-    borderColor: "#7A1F3D",
   },
-  gridItemSelected: {
-    backgroundColor: "#7A1F3D",
-  },
+  selectionPillText: { color: C.accent, fontSize: 12, fontWeight: "700" },
 
-  submitBtn: {
-    backgroundColor: "#7A1F3D",
-    padding: 18,
-    borderRadius: 16,
+  // ── Crops
+  cropGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  cropTile: {
+    width: "30%",
     alignItems: "center",
-    marginTop: 30,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.inputBg,
+    position: "relative",
+  },
+  cropTileActive: { backgroundColor: C.primaryFaint, borderColor: C.primary },
+  cropIcon: { fontSize: 26, marginBottom: 6 },
+  cropName: { fontSize: 12, fontWeight: "600", color: C.muted },
+  cropNameActive: { color: C.primary },
+  cropCheckDot: {
+    position: "absolute", top: 7, right: 7,
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: C.primary, justifyContent: "center", alignItems: "center",
   },
 
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  modalCard: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: "70%",
+  // ── Textarea
+  textarea: {
+    backgroundColor: C.inputBg,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 14,
+    padding: 14,
+    fontSize: 14,
+    color: C.ink,
+    minHeight: 100,
+    lineHeight: 22,
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 10 },
-  option: { paddingVertical: 14, borderBottomWidth: 1, borderColor: "#EEE" },
-  optionTitle: { fontWeight: "600" },
-  optionSub: { fontSize: 12, color: "#6B7280" },
+  charCount: { fontSize: 11, color: C.muted, textAlign: "right", marginTop: 6 },
+
+  // ── Submit
+  submitBtn: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: C.primary,
+    marginHorizontal: 16,
+    marginTop: 28,
+    paddingVertical: 18,
+    borderRadius: 18,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  submitText: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
+  submitArrow: { color: "#fff", fontSize: 20, marginLeft: 10, fontWeight: "700" },
+  resetBtn: { alignItems: "center", marginTop: 16, paddingVertical: 10 },
+  resetText: { color: C.muted, fontSize: 13, fontWeight: "600" },
+
+  // ── Modal
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
+  modalSheet: {
+    position: "absolute",
+    bottom: 0, left: 0, right: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    maxHeight: "80%",
+  },
+  modalHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: C.border,
+    alignSelf: "center",
+    marginBottom: 18,
+  },
+  modalTitle: { fontSize: 22, fontWeight: "800", color: C.ink, marginBottom: 4 },
+  modalSub: { fontSize: 13, color: C.muted, marginBottom: 16 },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.inputBg,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+  },
+  searchIcon: { fontSize: 16, marginRight: 8 },
+  searchInput: { flex: 1, paddingVertical: 13, fontSize: 15, color: C.ink },
+  emptyState: { alignItems: "center", paddingVertical: 32 },
+  emptyText: { color: C.muted, fontSize: 14, marginTop: 8 },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: "#F0EDE9",
+    gap: 12,
+  },
+  locationRowActive: { backgroundColor: C.primaryFaint, marginHorizontal: -20, paddingHorizontal: 20 },
+  locationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
+  locationTitle: { fontSize: 15, fontWeight: "600", color: C.ink },
+  locationSub: { fontSize: 12, color: C.muted, marginTop: 2 },
 });

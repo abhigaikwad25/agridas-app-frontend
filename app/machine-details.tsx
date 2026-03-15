@@ -1,258 +1,450 @@
 // app/machine-details.tsx
-
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  TouchableOpacity,
-  Dimensions,
-  SafeAreaView,
-  StatusBar,
-} from "react-native";
-import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import api from "@/app/utils/axiosinstance";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  Image,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
+const IMAGE_HEIGHT = 320;
 
+const C = {
+  bg: "#F4F6F4",
+  card: "#FFFFFF",
+  primary: "#1E7F43",
+  primaryFaint: "#EAF5EE",
+  ink: "#1C1917",
+  muted: "#78716C",
+  border: "#D8E5DA",
+  shadow: "rgba(30,127,67,0.10)",
+};
+
+// ─── Auto-scroll Carousel ─────────────────────────────────────────────────────
+function ImageCarousel({ images }: { images: string[] }) {
+  const ref = useRef<FlatList>(null);
+  const [active, setActive] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const resetTimer = () => {
+    if (timer.current) clearInterval(timer.current);
+    if (images.length <= 1) return;
+    timer.current = setInterval(() => {
+      setActive((prev) => {
+        const next = (prev + 1) % images.length;
+        ref.current?.scrollToIndex({ index: next, animated: true });
+        return next;
+      });
+    }, 5000);
+  };
+
+  useEffect(() => {
+    resetTimer();
+    return () => { if (timer.current) clearInterval(timer.current); };
+  }, [images.length]);
+
+  return (
+    <View style={{ height: IMAGE_HEIGHT, backgroundColor: "#E8EDE8" }}>
+      <FlatList
+        ref={ref}
+        data={images}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(_, i) => String(i)}
+        getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+        onMomentumScrollEnd={(e) => {
+          const idx = Math.round(e.nativeEvent.contentOffset.x / width);
+          setActive(idx);
+          resetTimer();
+        }}
+        renderItem={({ item }) => (
+          <Image
+            source={{ uri: item }}
+            style={{ width, height: IMAGE_HEIGHT }}
+            resizeMode="cover"
+          />
+        )}
+      />
+
+      {/* Dot indicators */}
+      {images.length > 1 && (
+        <View style={s.dotRow}>
+          {images.map((_, i) => (
+            <TouchableOpacity
+              key={i}
+              onPress={() => {
+                ref.current?.scrollToIndex({ index: i, animated: true });
+                setActive(i);
+                resetTimer();
+              }}
+            >
+              <View style={[s.dot, i === active && s.dotActive]} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
+      {/* Image counter */}
+      {images.length > 1 && (
+        <View style={s.counter}>
+          <Ionicons name="images-outline" size={11} color="#fff" />
+          <Text style={s.counterText}>{active + 1} / {images.length}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+// ─── Info Row ─────────────────────────────────────────────────────────────────
+function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+  return (
+    <View style={s.infoRow}>
+      <View style={s.infoIcon}>
+        <Ionicons name={icon as any} size={15} color={C.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={s.infoLabel}>{label}</Text>
+        <Text style={s.infoValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function MachineDetailsScreen() {
   const { machineId } = useLocalSearchParams<{ machineId: string }>();
   const router = useRouter();
-
   const [machine, setMachine] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [liked, setLiked] = useState(false);
 
-  useEffect(() => {
-    fetchMachineDetails();
-  }, []);
+  useEffect(() => { loadMachine(); }, []);
 
-  const fetchMachineDetails = async () => {
+  const loadMachine = async () => {
     try {
       const token = await AsyncStorage.getItem("authToken");
-
-      const res = await axios.get(
+      const res = await api.get(
         `https://agridas.onrender.com/machine/details/${machineId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
-
       setMachine(res.data);
-      setLoading(false);
-    } catch (error) {
-      console.log("DETAILS API ERROR:", error);
+    } catch (e) {
+      console.log(e);
+    } finally {
       setLoading(false);
     }
   };
 
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color="#1E7F3B" />
+      <View style={s.loadingScreen}>
+        <ActivityIndicator size="large" color={C.primary} />
+        <Text style={s.loadingText}>Loading details…</Text>
       </View>
     );
   }
 
   if (!machine) return null;
 
+  const images: string[] = machine.images?.length
+    ? machine.images
+    : ["https://via.placeholder.com/400x320"];
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+    <View style={s.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* IMAGE SECTION */}
+      {/* ── Carousel (no dark overlay) ── */}
       <View>
-        <Image
-          source={{ uri: machine.images?.[0] }}
-          style={styles.image}
-        />
+        <ImageCarousel images={images} />
 
-        {/* Back Button */}
-        <TouchableOpacity
-          style={styles.backBtn}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={22} color="#000" />
+        {/* White pill back button */}
+        <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={18} color={C.ink} />
         </TouchableOpacity>
 
-        
+        {/* White pill like button */}
+        <TouchableOpacity style={s.likeBtn} onPress={() => setLiked(v => !v)}>
+          <Ionicons
+            name={liked ? "heart" : "heart-outline"}
+            size={18}
+            color={liked ? "#E53935" : C.ink}
+          />
+        </TouchableOpacity>
       </View>
 
-      {/* DETAILS CARD */}
-      <View style={styles.detailsContainer}>
-        <ScrollView showsVerticalScrollIndicator={false}>
+      {/* ── Details Sheet ── */}
+      <View style={s.sheet}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 110 }}
+        >
+          <View style={s.handle} />
 
-          <Text style={styles.title}>{machine.name}</Text>
+          {/* Title + Rating */}
+          <View style={s.titleRow}>
+            <Text style={s.title}>{machine.name}</Text>
+            <View style={s.ratingChip}>
+              <Ionicons name="star" size={12} color="#F59E0B" />
+              <Text style={s.ratingNum}>4.9</Text>
+            </View>
+          </View>
+          <Text style={s.reviews}>Based on 40 reviews</Text>
 
-          <Text style={styles.rating}>
-            4.9 • 40 Reviews
-          </Text>
-
-          <Text style={styles.location}>
-            {machine.taluka}, {machine.district}, {machine.state}
-          </Text>
-
-          <View style={styles.divider} />
-
-          {/* Info Rows */}
-          <InfoRow label="Type" value={machine.machineType?.join(", ")} />
-          <InfoRow label="Crops" value={machine.crops?.join(", ")} />
-          <InfoRow label="Coverage" value={`${machine.maxAcreCoverage} Acre`} />
-          <InfoRow label="Delivery" value={`₹ ${machine.deliveryChargePerKm} / km`} />
-          <InfoRow label="Owner Contact" value={machine.ownerPhoneno} />
-
-          {machine.description ? (
-            <>
-              <Text style={styles.sectionTitle}>About this machine</Text>
-              <Text style={styles.description}>
-                {machine.description}
-              </Text>
-            </>
-          ) : null}
-
-        </ScrollView>
-
-        {/* Sticky Bottom Booking */}
-        <View style={styles.bottomBar}>
-          <View>
-            <Text style={styles.price}>
-              ₹ {machine.pricePerDay}
-              <Text style={styles.perDay}> / Acre</Text>
+          {/* Location */}
+          <View style={s.locRow}>
+            <Ionicons name="location-outline" size={14} color={C.primary} />
+            <Text style={s.locText}>
+              {machine.taluka}, {machine.district}, {machine.state}
             </Text>
           </View>
 
+          {/* Price band */}
+          <View style={s.priceBand}>
+            <View style={s.priceCell}>
+              <Text style={s.priceCellLabel}>Per Acre</Text>
+              <Text style={s.priceCellValue}>₹{machine.pricePerDay}</Text>
+            </View>
+            <View style={s.priceSep} />
+            <View style={s.priceCell}>
+              <Text style={s.priceCellLabel}>Delivery</Text>
+              <Text style={s.priceCellValue}>
+                ₹{machine.deliveryChargePerKm}
+                <Text style={s.priceUnit}>/km</Text>
+              </Text>
+            </View>
+            <View style={s.priceSep} />
+            <View style={s.priceCell}>
+              <Text style={s.priceCellLabel}>Coverage</Text>
+              <Text style={s.priceCellValue}>
+                {machine.maxAcreCoverage}
+                <Text style={s.priceUnit}> ac</Text>
+              </Text>
+            </View>
+          </View>
+
+          {/* Specs card */}
+          <View style={s.card}>
+            <Text style={s.cardTitle}>Specifications</Text>
+            <InfoRow
+              icon="construct-outline"
+              label="Machine Type"
+              value={
+                machine.machineType
+                  ?.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1))
+                  .join(", ") || "—"
+              }
+            />
+            <View style={[s.infoRow, { borderBottomWidth: 0 }]}>
+              <View style={s.infoIcon}>
+                <Ionicons name="leaf-outline" size={15} color={C.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={s.infoLabel}>Supported Crops</Text>
+                <View style={[s.chips, { marginTop: 6 }]}>
+                  {machine.crops?.map((c: string, i: number) => (
+                    <View key={i} style={s.chip}>
+                      <Text style={s.chipText}>{c}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Description */}
+          {machine.description ? (
+            <View style={s.card}>
+              <Text style={s.cardTitle}>About this Machine</Text>
+              <Text style={s.desc}>{machine.description}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+
+        {/* ── Sticky Bottom Bar ── */}
+        <View style={s.bar}>
+          <View>
+            <Text style={s.barLabel}>Starting from</Text>
+            <Text style={s.barPrice}>
+              ₹{machine.pricePerDay}
+              <Text style={s.barUnit}> / acre</Text>
+            </Text>
+          </View>
           <TouchableOpacity
-            style={styles.bookBtn}
-            onPress={() =>
-              router.push(`/booking?machineId=${machine._id}`)
-            }
+            style={s.bookBtn}
+            onPress={() => router.push(`/booking?machineId=${machine._id}`)}
+            activeOpacity={0.85}
           >
-            <Text style={styles.bookText}>Book Now</Text>
+            <Text style={s.bookText}>Book Now</Text>
+            <Ionicons name="arrow-forward" size={15} color="#fff" />
           </TouchableOpacity>
         </View>
-
       </View>
-    </SafeAreaView>
-  );
-}
-
-/* Small reusable component */
-function InfoRow({ label, value }: any) {
-  return (
-    <View style={styles.infoRow}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{value}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#fff",
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.card },
+
+  loadingScreen: {
+    flex: 1, backgroundColor: C.bg,
+    justifyContent: "center", alignItems: "center", gap: 12,
   },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+  loadingText: { fontSize: 14, color: C.muted, fontWeight: "600" },
+
+  // Carousel
+  dotRow: {
+    position: "absolute", bottom: 14,
+    left: 0, right: 0,
+    flexDirection: "row", justifyContent: "center", gap: 5,
   },
-  image: {
-    width: width,
-    height: 300,
+  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
+  dotActive: { width: 20, backgroundColor: "#fff" },
+  counter: {
+    position: "absolute", bottom: 14, right: 14,
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20,
   },
+  counterText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+
+  // Floating buttons — white pill, no dark overlay on image
   backBtn: {
     position: "absolute",
-    top: 50,
-    left: 20,
+    top: Platform.OS === "ios" ? 54 : 42,
+    left: 14,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: "#fff",
-    padding: 8,
-    borderRadius: 30,
+    justifyContent: "center", alignItems: "center",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 5, elevation: 5,
   },
-  favBtn: {
+  likeBtn: {
     position: "absolute",
-    top: 50,
-    right: 20,
+    top: Platform.OS === "ios" ? 54 : 42,
+    right: 14,
+    width: 36, height: 36, borderRadius: 18,
     backgroundColor: "#fff",
-    padding: 8,
-    borderRadius: 30,
+    justifyContent: "center", alignItems: "center",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12, shadowRadius: 5, elevation: 5,
   },
-  detailsContainer: {
+
+  // Sheet
+  sheet: {
     flex: 1,
-    backgroundColor: "#fff",
-    marginTop: -25,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    padding: 20,
+    backgroundColor: C.bg,
+    marginTop: -22,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
+  handle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: C.border,
+    alignSelf: "center", marginBottom: 16,
   },
-  rating: {
-    marginTop: 6,
-    color: "#444",
+
+  // Title
+  titleRow: {
+    flexDirection: "row", justifyContent: "space-between",
+    alignItems: "flex-start", marginBottom: 3,
   },
-  location: {
-    marginTop: 6,
-    color: "#666",
+  title: { fontSize: 21, fontWeight: "800", color: C.ink, flex: 1, marginRight: 10, lineHeight: 27 },
+  ratingChip: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    backgroundColor: "#FFFBEB", paddingHorizontal: 9, paddingVertical: 4,
+    borderRadius: 20, borderWidth: 1, borderColor: "#FDE68A",
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#eee",
-    marginVertical: 15,
+  ratingNum: { fontSize: 12, fontWeight: "800", color: "#92400E" },
+  reviews: { fontSize: 12, color: C.muted, marginBottom: 10 },
+
+  // Location
+  locRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 16 },
+  locText: { fontSize: 13, color: C.muted },
+
+  // Price band
+  priceBand: {
+    flexDirection: "row",
+    backgroundColor: C.primary,
+    borderRadius: 16,
+    marginBottom: 14,
   },
+  priceCell: { flex: 1, paddingVertical: 14, alignItems: "center" },
+  priceCellLabel: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "600", marginBottom: 3 },
+  priceCellValue: { color: "#fff", fontSize: 17, fontWeight: "900" },
+  priceUnit: { fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: "600" },
+  priceSep: { width: 1, marginVertical: 10, backgroundColor: "rgba(255,255,255,0.2)" },
+
+  // Card
+  card: {
+    backgroundColor: C.card, borderRadius: 16, padding: 16,
+    marginBottom: 12,
+    shadowColor: C.shadow, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1, shadowRadius: 6, elevation: 3,
+  },
+  cardTitle: { fontSize: 14, fontWeight: "800", color: C.ink, marginBottom: 12 },
+
+  // Info rows
   infoRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 10,
+    flexDirection: "row", alignItems: "flex-start", gap: 12,
+    paddingVertical: 10, borderBottomWidth: 1, borderColor: C.border,
   },
-  label: {
-    fontWeight: "600",
-    color: "#555",
+  infoIcon: {
+    width: 32, height: 32, borderRadius: 9,
+    backgroundColor: C.primaryFaint,
+    justifyContent: "center", alignItems: "center", flexShrink: 0,
   },
-  value: {
-    color: "#222",
+  infoLabel: { fontSize: 11, color: C.muted, fontWeight: "600", marginBottom: 1 },
+  infoValue: { fontSize: 14, fontWeight: "700", color: C.ink },
+
+  // Chips
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
+  chip: {
+    backgroundColor: C.primaryFaint,
+    paddingHorizontal: 11, paddingVertical: 4,
+    borderRadius: 20, borderWidth: 1, borderColor: C.border,
   },
-  sectionTitle: {
-    marginTop: 20,
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1E7F3B",
+  chipText: { fontSize: 12, fontWeight: "700", color: C.primary },
+
+  // Description
+  desc: { fontSize: 14, color: C.muted, lineHeight: 22 },
+
+  // Bottom bar
+  bar: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    backgroundColor: C.card,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: Platform.OS === "ios" ? 30 : 16,
+    borderTopWidth: 1, borderColor: C.border,
   },
-  description: {
-    marginTop: 6,
-    color: "#555",
-    lineHeight: 20,
-  },
-  bottomBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderColor: "#eee",
-  },
-  price: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  perDay: {
-    fontSize: 14,
-    color: "#666",
-  },
+  barLabel: { fontSize: 11, color: C.muted, fontWeight: "600", marginBottom: 1 },
+  barPrice: { fontSize: 22, fontWeight: "900", color: C.ink },
+  barUnit: { fontSize: 13, color: C.muted, fontWeight: "600" },
   bookBtn: {
-    backgroundColor: "#1E7F3B",
-    paddingHorizontal: 28,
-    paddingVertical: 12,
-    borderRadius: 30,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    backgroundColor: C.primary,
+    paddingHorizontal: 22, paddingVertical: 13, borderRadius: 13,
+    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28, shadowRadius: 8, elevation: 5,
   },
-  bookText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
-  },
+  bookText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 });
