@@ -1,14 +1,14 @@
 // app/machines.tsx
-import { FontAwesome5 } from "@expo/vector-icons";
+import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
   FlatList,
   ImageBackground,
+  Platform,
   SafeAreaView,
   StyleSheet,
   Text,
@@ -16,11 +16,27 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useRouter } from "expo-router";
-
+import api from "./utils/axiosinstance";
+import { BASE_URL } from "@/constants/api";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
 const IMAGE_HEIGHT = 220;
+
+// ─── Buyer-mode palette ───────────────────────────────────────────────────────
+const C = {
+  bg: "#F4F6F4",
+  card: "#FFFFFF",
+  primary: "#1E7F43",
+  primaryFaint: "#EAF5EE",
+  primaryDark: "#155C30",
+  accent: "#D4873A",
+  accentLight: "#FDF3E7",
+  ink: "#1C1917",
+  muted: "#78716C",
+  border: "#D8E5DA",
+  inputBg: "#FFFFFF",
+  shadow: "rgba(30,127,67,0.12)",
+};
 
 export default function MachinesScreen() {
   const { machineType, lat, long } = useLocalSearchParams<{
@@ -38,94 +54,129 @@ export default function MachinesScreen() {
     const fetchMachines = async () => {
       try {
         const token = await AsyncStorage.getItem("authToken");
-
-        const res = await axios.get(
-          `https://agridas.onrender.com/machine/list?lat=${lat}&long=${long}&machineType=${machineType}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+        const res = await api.get(
+          `${BASE_URL}/machine/list?lat=${lat}&long=${long}&machineType=${machineType}`,
+          { headers: { Authorization: `Bearer ${token}` } }
         );
-
         setMachines(res.data);
-        setLoading(false);
       } catch (err) {
         console.log("API ERROR:", err);
+      } finally {
         setLoading(false);
       }
     };
-
     fetchMachines();
   }, []);
 
   const filteredMachines = machines.filter((item) => {
     const name = item.name?.toLowerCase() || "";
-    const location =
-      `${item.taluka} ${item.district} ${item.state}`.toLowerCase();
-
+    const location = `${item.taluka} ${item.district} ${item.state}`.toLowerCase();
     return (
       name.includes(searchText.toLowerCase()) ||
       location.includes(searchText.toLowerCase())
     );
   });
 
+  // ── Loading state ────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-        <Text>Loading machines...</Text>
+      <View style={s.loadingScreen}>
+        <View style={s.loadingCard}>
+          <ActivityIndicator size="large" color={C.primary} />
+          <Text style={s.loadingTitle}>Finding machines…</Text>
+          <Text style={s.loadingText}>Searching near your location</Text>
+        </View>
       </View>
     );
   }
 
+  // ── Card ─────────────────────────────────────────────────────────────────────
   const renderItem = ({ item }: any) => {
     const imageUrl = item.images?.[0];
-
-    const locationLine =
-      `${item.taluka}, ${item.district}, ${item.state}`;
+    const locationLine = `${item.taluka}, ${item.district}, ${item.state}`;
 
     return (
       <TouchableOpacity
-      activeOpacity={0.95}
-      style={styles.cardWrap}
-      onPress={() =>
-        router.push(`/machine-details?machineId=${item._id}`)
-      }
-    >
-        <View style={styles.card}>
+        activeOpacity={0.93}
+        style={s.cardWrap}
+        onPress={() => router.push(`/machine-details?machineId=${item._id}`)}
+      >
+        <View style={s.card}>
+          {/* Image */}
           <ImageBackground
             source={{ uri: imageUrl }}
-            style={styles.imageBackground}
-            imageStyle={styles.imageStyle}
+            style={s.imageBackground}
+            imageStyle={s.imageStyle}
           >
-            <TouchableOpacity style={styles.heart}>
-              <Text style={{ color: "#fff", fontWeight: "700" }}>♡</Text>
-            </TouchableOpacity>
+            {/* Gradient overlay */}
+            <View style={s.imageGradient} />
+
+            {/* Top badges */}
+            <View style={s.imageTopRow}>
+              <View style={s.typeBadge}>
+                <Text style={s.typeBadgeText}>
+                  {item.machineType?.[0] ?? "Machine"}
+                </Text>
+              </View>
+              <TouchableOpacity style={s.heartBtn}>
+                <Ionicons name="heart-outline" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Price pill over image */}
+            <View style={s.pricePill}>
+              <Text style={s.pricePillText}>₹{item.pricePerDay}</Text>
+              <Text style={s.pricePillSub}>/day</Text>
+            </View>
           </ImageBackground>
 
-          <View style={styles.cardBody}>
-            <View style={styles.row}>
-              <Text style={styles.title}>{item.name}</Text>
-              <View style={styles.ratingWrap}>
-                <Text style={styles.star}>★</Text>
-                <Text style={styles.ratingText}>5.0</Text>
-                <Text style={styles.reviewsText}>(13)</Text>
+          {/* Body */}
+          <View style={s.cardBody}>
+            {/* Title + Rating */}
+            <View style={s.titleRow}>
+              <Text style={s.title} numberOfLines={1}>{item.name}</Text>
+              <View style={s.ratingWrap}>
+                <Ionicons name="star" size={13} color="#F59E0B" />
+                <Text style={s.ratingText}>5.0</Text>
+                <Text style={s.reviewsText}>(13)</Text>
               </View>
             </View>
 
-            <Text style={styles.subtitle} numberOfLines={2}>
-              {item.description}
-            </Text>
+            {/* Description */}
+            {item.description ? (
+              <Text style={s.desc} numberOfLines={2}>{item.description}</Text>
+            ) : null}
 
-            <View style={styles.locationRow}>
-              <FontAwesome5 name="map-marker-alt" size={14} color="#444" />
-              <Text style={styles.locationText}>{locationLine}</Text>
+            {/* Location */}
+            <View style={s.locationRow}>
+              <View style={s.locationIconWrap}>
+                <FontAwesome5 name="map-marker-alt" size={11} color={C.primary} />
+              </View>
+              <Text style={s.locationText} numberOfLines={1}>{locationLine}</Text>
             </View>
 
-            <View style={styles.bottomRow}>
-              <Text style={styles.price}>
-                ₹ {item.pricePerDay}
-                <Text style={styles.priceSmall}> / acre</Text>
-              </Text>
+            {/* Footer chips */}
+            <View style={s.footer}>
+              <View style={s.chipRow}>
+                {item.crops?.slice(0, 2).map((c: string, i: number) => (
+                  <View key={i} style={s.chip}>
+                    <Text style={s.chipText}>{c}</Text>
+                  </View>
+                ))}
+                {item.crops?.length > 2 && (
+                  <View style={s.chip}>
+                    <Text style={s.chipText}>+{item.crops.length - 2}</Text>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={s.bookBtn}
+                onPress={() => router.push(`/machine-details?machineId=${item._id}`)}
+              >
+                <Text style={s.bookBtnText}>View</Text>
+                <Ionicons name="arrow-forward" size={13} color="#fff" />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -133,180 +184,201 @@ export default function MachinesScreen() {
     );
   };
 
+  // ── List header ──────────────────────────────────────────────────────────────
+  const ListHeader = () => (
+    <View style={s.listHeader}>
+      <Text style={s.resultCount}>
+        {filteredMachines.length} machine{filteredMachines.length !== 1 ? "s" : ""} found
+      </Text>
+      {machineType && (
+        <View style={s.filterBadge}>
+          <Ionicons name="options-outline" size={12} color={C.primary} />
+          <Text style={s.filterBadgeText}>{machineType}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const ListEmpty = () => (
+    <View style={s.emptyState}>
+      <Text style={s.emptyIcon}>🚜</Text>
+      <Text style={s.emptyTitle}>No machines found</Text>
+      <Text style={s.emptyText}>Try a different search or expand your location range.</Text>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.searchOuter}>
-        <View style={styles.searchPill}>
+    <SafeAreaView style={s.safe}>
+      {/* ── Page Header ── */}
+      <View style={s.header}>
+        <View style={s.headerBadge}>
+          <Text style={s.headerBadgeText}>AGRIDAS • BUYER</Text>
+        </View>
+        <Text style={s.headerTitle}>Available Machines</Text>
+
+        {/* Search bar */}
+        <View style={s.searchRow}>
+          <Ionicons name="search" size={18} color={C.muted} style={{ marginRight: 8 }} />
           <TextInput
-            placeholder="Search machines..."
-            style={styles.searchInput}
+            placeholder="Search by name or location…"
+            style={s.searchInput}
             value={searchText}
             onChangeText={setSearchText}
-            placeholderTextColor="#999"
+            placeholderTextColor={C.muted}
           />
-
-          <TouchableOpacity style={styles.searchButton}>
-            <Text style={{ color: "#fff", fontWeight: "bold" }}>🔍</Text>
-          </TouchableOpacity>
+          {searchText.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchText("")}>
+              <Ionicons name="close-circle" size={18} color={C.muted} />
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
+      {/* ── List ── */}
       <FlatList
         data={filteredMachines}
         keyExtractor={(item) => item._id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
-        ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+        contentContainerStyle={s.listContent}
+        ListHeaderComponent={<ListHeader />}
+        ListEmptyComponent={<ListEmpty />}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
       />
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#f4f6f4",
-    paddingTop: 25,
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: C.bg },
+
+  // ── Loading
+  loadingScreen: { flex: 1, backgroundColor: C.bg, justifyContent: "center", alignItems: "center" },
+  loadingCard: {
+    backgroundColor: C.card, borderRadius: 20, padding: 32,
+    alignItems: "center", gap: 10, minWidth: 220,
+    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1, shadowRadius: 12, elevation: 6,
   },
+  loadingTitle: { fontSize: 16, fontWeight: "700", color: C.ink },
+  loadingText: { fontSize: 13, color: C.muted },
 
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-
-  searchOuter: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: "#f4f6f4",
+  // ── Header
+  header: {
+    backgroundColor: C.primary,
+    paddingTop: Platform.OS === "ios" ? 0 : 16,
+    paddingBottom: 20,
+    paddingHorizontal: 18,
   },
+  headerBadge: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignSelf: "flex-start",
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, marginBottom: 8,
+  },
+  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
+  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "800", marginBottom: 14 },
 
-  searchPill: {
-    flexDirection: "row",
-    alignItems: "center",
+  // Search bar inside header
+  searchRow: {
+    flexDirection: "row", alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 30,
-    paddingLeft: 16,
-    paddingRight: 6,
-    height: 48,
-    elevation: 2,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11,
   },
+  searchInput: { flex: 1, fontSize: 14, color: C.ink },
 
-  searchInput: {
-    flex: 1,
-    height: "100%",
-    fontSize: 14,
+  // ── List
+  listContent: { padding: 16, paddingBottom: 48 },
+  listHeader: {
+    flexDirection: "row", justifyContent: "space-between",
+    alignItems: "center", marginBottom: 14,
   },
-
-  searchButton: {
-    width: 40,
-    height: 40,
+  resultCount: { fontSize: 14, fontWeight: "700", color: C.ink },
+  filterBadge: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: C.primaryFaint, paddingHorizontal: 10, paddingVertical: 4,
     borderRadius: 20,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
   },
+  filterBadgeText: { fontSize: 12, fontWeight: "700", color: C.primary, textTransform: "capitalize" },
 
-  cardWrap: {
-    alignItems: "center",
-  },
-
+  // ── Card
+  cardWrap: {},
   card: {
-    width: CARD_WIDTH,
-    borderRadius: 16,
-    backgroundColor: "#fff",
-    overflow: "hidden",
-    elevation: 3,
+    width: CARD_WIDTH, borderRadius: 18,
+    backgroundColor: C.card, overflow: "hidden",
+    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1, shadowRadius: 10, elevation: 4,
   },
 
-  imageBackground: {
-    width: "100%",
-    height: IMAGE_HEIGHT,
-    justifyContent: "flex-end",
+  // Image
+  imageBackground: { width: "100%", height: IMAGE_HEIGHT, justifyContent: "space-between" },
+  imageStyle: { borderTopLeftRadius: 18, borderTopRightRadius: 18 },
+  imageGradient: {
+    ...StyleSheet.absoluteFillObject,
+    borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    backgroundColor: "rgba(0,0,0,0.18)",
   },
-
-  imageStyle: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+  imageTopRow: {
+    flexDirection: "row", justifyContent: "space-between",
+    alignItems: "center", padding: 12,
   },
-
-  heart: {
-    position: "absolute",
-    right: 10,
-    top: 10,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: "center",
-    alignItems: "center",
+  typeBadge: {
+    backgroundColor: "rgba(0,0,0,0.45)",
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+  },
+  typeBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700", textTransform: "capitalize" },
+  heartBtn: {
+    width: 34, height: 34, borderRadius: 17,
     backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "center", alignItems: "center",
   },
+  pricePill: {
+    flexDirection: "row", alignItems: "baseline", gap: 2,
+    alignSelf: "flex-start",
+    backgroundColor: C.primary,
+    marginLeft: 12, marginBottom: 12,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+  },
+  pricePillText: { color: "#fff", fontSize: 16, fontWeight: "900" },
+  pricePillSub: { color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "600" },
 
-  cardBody: {
-    padding: 14,
-  },
+  // Card Body
+  cardBody: { padding: 14 },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  title: { fontSize: 16, fontWeight: "800", color: C.ink, flex: 1, marginRight: 8 },
+  ratingWrap: { flexDirection: "row", alignItems: "center", gap: 3 },
+  ratingText: { fontWeight: "700", fontSize: 13, color: C.ink },
+  reviewsText: { color: C.muted, fontSize: 12 },
 
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
+  desc: { fontSize: 13, color: C.muted, lineHeight: 19, marginBottom: 10 },
 
-  title: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#111",
-    width: "68%",
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+  locationIconWrap: {
+    width: 22, height: 22, borderRadius: 6,
+    backgroundColor: C.primaryFaint,
+    justifyContent: "center", alignItems: "center",
   },
+  locationText: { fontSize: 12, color: C.muted, flex: 1 },
 
-  ratingWrap: {
-    flexDirection: "row",
-    alignItems: "center",
+  // Footer
+  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  chipRow: { flexDirection: "row", gap: 6, flexWrap: "wrap", flex: 1 },
+  chip: {
+    backgroundColor: C.primaryFaint, paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 20,
   },
+  chipText: { fontSize: 11, fontWeight: "600", color: C.primary },
+  bookBtn: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    backgroundColor: C.primary,
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+  },
+  bookBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
 
-  star: {
-    color: "#ffb400",
-    marginRight: 4,
-    fontSize: 14,
-  },
-
-  ratingText: {
-    fontWeight: "600",
-    marginRight: 4,
-  },
-
-  reviewsText: {
-    color: "#666",
-    fontSize: 12,
-  },
-
-  subtitle: {
-    marginTop: 6,
-    color: "#666",
-    fontSize: 13,
-  },
-
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 6,
-  },
-
-  locationText: {
-    marginLeft: 6,
-    color: "#444",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-
-  bottomRow: {
-    marginTop: 12,
-  },
-
-  price: {
-    fontSize: 16,
-    fontWeight: "800",
-  },
-
-  priceSmall: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#666",
-  },
+  // ── Empty state
+  emptyState: { alignItems: "center", paddingVertical: 48, paddingHorizontal: 32 },
+  emptyIcon: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { fontSize: 18, fontWeight: "800", color: C.ink, marginBottom: 6 },
+  emptyText: { fontSize: 14, color: C.muted, textAlign: "center", lineHeight: 20 },
 });

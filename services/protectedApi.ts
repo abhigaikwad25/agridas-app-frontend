@@ -1,13 +1,12 @@
-import { API } from "@/constants/api";
 import { router } from "expo-router";
 import { Alert } from "react-native";
 import { getToken, removeToken } from "./authStorage";
-
+import { BASE_URL } from "@/constants/api";
 export const apiFetch = async (endpoint: string, options: any = {}) => {
   const token = await getToken();
   const isFormData = options.body instanceof FormData;
 
-  const res = await fetch(`${API.BASE_URL}${endpoint}`, {
+  const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
