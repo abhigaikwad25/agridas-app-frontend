@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     FlatList,
-    Linking,
+    Image,
     Modal,
     Platform,
     StyleSheet,
@@ -17,6 +17,9 @@ import {
 } from "react-native";
 import { BASE_URL } from "@/constants/api";
 import api from "../utils/axiosinstance";
+
+const DEFAULT_IMAGE = require("../../assets/images/laborproovider.jpg");
+
 const C = {
   bg: "#F4F6F4",
   card: "#FFFFFF",
@@ -56,6 +59,7 @@ interface ProviderType {
   skills: string[];
   crops: string[];
   description: string;
+  images?: string[];
 }
 
 export default function SearchLabourScreen() {
@@ -68,7 +72,7 @@ export default function SearchLabourScreen() {
   const [providers, setProviders] = useState<ProviderType[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // ── Same location logic ──────────────────────────────────────────────────
+  // ── Location search filter ───────────────────────────────────────────────
   useEffect(() => {
     if (!search) { setFilteredLocations(locations); return; }
     const lower = search.toLowerCase();
@@ -82,88 +86,94 @@ export default function SearchLabourScreen() {
     setFilteredLocations(data);
   };
 
+  // ── Fetch labor providers by locationId ─────────────────────────────────
   const fetchProviders = async (locationId: string) => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("authToken");
-      const res = await api.get(`${BASE_URL}/labour/by-location/${locationId}`, {
+      const res = await api.get(`${BASE_URL}/laborProvider/list`, {
+        params: { locationId },
         headers: { Authorization: `Bearer ${token}` },
       });
       setProviders(res.data || []);
     } catch (e) {
-      console.log("Error fetching providers:", e);
+      console.log("Error fetching labor providers:", e);
+      setProviders([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCall = (phone: string) => Linking.openURL(`tel:${phone}`);
-
   // ── Provider card ────────────────────────────────────────────────────────
-  const ProviderCard = ({ item }: { item: ProviderType }) => (
-    <View style={s.card}>
-      {/* Top row */}
-      <View style={s.cardTop}>
-        <View style={s.avatar}>
-          <Text style={s.avatarText}>{item.name?.charAt(0).toUpperCase()}</Text>
-        </View>
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={s.providerName}>{item.name}</Text>
-          <View style={s.metaRow}>
-            <Ionicons name="people-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>{item.numberOfWorkers} workers</Text>
-            {item.experience > 0 && (
-              <>
-                <Text style={s.metaDot}>·</Text>
-                <Ionicons name="time-outline" size={12} color={C.muted} />
-                <Text style={s.metaText}>{item.experience}y exp</Text>
-              </>
-            )}
-          </View>
-        </View>
-        <View style={s.priceBadge}>
-          <Text style={s.priceText}>₹{item.pricePerDay}</Text>
-          <Text style={s.priceUnit}>/day</Text>
-        </View>
-      </View>
+  const ProviderCard = ({ item }: { item: ProviderType }) => {
+    const imageUrl = item.images?.[0];
+    return (
+      <View style={s.card}>
+        {/* Cover Image */}
+        <Image
+          source={imageUrl ? { uri: imageUrl } : DEFAULT_IMAGE}
+          style={s.cardImage}
+          resizeMode="cover"
+          defaultSource={DEFAULT_IMAGE}
+          onError={(e) => console.log("Image load error:", e.nativeEvent.error)}
+        />
 
-      {/* Skills */}
-      {item.skills?.length > 0 && (
-        <View style={s.chipsRow}>
-          {item.skills.map((sk, i) => (
-            <View key={i} style={s.chip}>
-              <Text style={s.chipEmoji}>{SKILL_ICONS[sk] ?? "👷"}</Text>
-              <Text style={s.chipText}>
-                {sk.charAt(0).toUpperCase() + sk.slice(1).replace("_", " ")}
-              </Text>
+        <View style={s.cardBody}>
+          {/* Top row */}
+          <View style={s.cardTop}>
+            <View style={s.avatar}>
+              <Text style={s.avatarText}>{item.name?.charAt(0).toUpperCase()}</Text>
             </View>
-          ))}
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.providerName}>{item.name}</Text>
+              <View style={s.metaRow}>
+                <Ionicons name="people-outline" size={12} color={C.muted} />
+                <Text style={s.metaText}>{item.numberOfWorkers} workers</Text>
+                {item.experience > 0 && (
+                  <>
+                    <Text style={s.metaDot}>·</Text>
+                    <Ionicons name="time-outline" size={12} color={C.muted} />
+                    <Text style={s.metaText}>{item.experience}y exp</Text>
+                  </>
+                )}
+              </View>
+            </View>
+            <View style={s.priceBadge}>
+              <Text style={s.priceText}>₹{item.pricePerDay}</Text>
+              <Text style={s.priceUnit}>/day</Text>
+            </View>
+          </View>
+
+          {/* Skills */}
+          {item.skills?.length > 0 && (
+            <View style={s.chipsRow}>
+              {item.skills.map((sk, i) => (
+                <View key={i} style={s.chip}>
+                  <Text style={s.chipEmoji}>{SKILL_ICONS[sk] ?? "👷"}</Text>
+                  <Text style={s.chipText}>
+                    {sk.charAt(0).toUpperCase() + sk.slice(1).replace("_", " ")}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Description */}
+          {item.description ? (
+            <Text style={s.desc} numberOfLines={2}>{item.description}</Text>
+          ) : null}
+
+          <View style={s.divider} />
+
+          {/* Book Now — full width */}
+          <TouchableOpacity style={s.bookBtn} activeOpacity={0.85}>
+            <Text style={s.bookText}>Book Now</Text>
+            <Ionicons name="arrow-forward" size={14} color="#fff" />
+          </TouchableOpacity>
         </View>
-      )}
-
-      {/* Description */}
-      {item.description ? (
-        <Text style={s.desc} numberOfLines={2}>{item.description}</Text>
-      ) : null}
-
-      <View style={s.divider} />
-
-      {/* Actions */}
-      <View style={s.actions}>
-        <TouchableOpacity
-          style={s.callBtn}
-          onPress={() => handleCall(item.ownerPhoneno)}
-        >
-          <Ionicons name="call-outline" size={15} color={C.primary} />
-          <Text style={s.callText}>Call</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.bookBtn}>
-          <Text style={s.bookText}>Book Labour</Text>
-          <Ionicons name="arrow-forward" size={14} color="#fff" />
-        </TouchableOpacity>
       </View>
-    </View>
-  );
+    );
+  };
 
   const ListHeader = () => (
     <View style={s.listHeader}>
@@ -186,7 +196,7 @@ export default function SearchLabourScreen() {
         <View style={s.heroBadge}>
           <Text style={s.heroBadgeText}>AGRIDAS • BUYER</Text>
         </View>
-        <Text style={s.heroTitle}>Find Skilled{"\n"}Labour</Text>
+        <Text style={s.heroTitle}>Find Labor{"\n"}Providers</Text>
         <Text style={s.heroSub}>Trusted farm workers near your location 👨‍🌾</Text>
 
         <View style={s.statsStrip}>
@@ -229,7 +239,7 @@ export default function SearchLabourScreen() {
       {loading ? (
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={s.loadingText}>Finding workers…</Text>
+          <Text style={s.loadingText}>Finding labor providers…</Text>
         </View>
       ) : (
         <FlatList
@@ -244,21 +254,21 @@ export default function SearchLabourScreen() {
             selectedLocation ? (
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>🌾</Text>
-                <Text style={s.emptyTitle}>No workers found</Text>
+                <Text style={s.emptyTitle}>No providers found</Text>
                 <Text style={s.emptyText}>Try a different taluka or check back later.</Text>
               </View>
             ) : (
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>📍</Text>
                 <Text style={s.emptyTitle}>Select a location</Text>
-                <Text style={s.emptyText}>Choose a taluka above to see available workers.</Text>
+                <Text style={s.emptyText}>Choose a taluka above to see available labor providers.</Text>
               </View>
             )
           }
         />
       )}
 
-      {/* ─── Location Modal ─────────────────────────────────────────────── */}
+      {/* ─── Location Modal ──────────────────────────────────────────────── */}
       <Modal visible={showLocationModal} transparent animationType="slide">
         <TouchableOpacity
           style={s.modalOverlay}
@@ -359,7 +369,7 @@ const s = StyleSheet.create({
   statNum: { color: "#fff", fontSize: 17, fontWeight: "900" },
   statLabel: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: "600", marginTop: 2 },
 
-  // Filter card (floats over hero)
+  // Filter card
   filterCard: {
     marginHorizontal: 16,
     marginTop: -36,
@@ -398,10 +408,13 @@ const s = StyleSheet.create({
 
   // Provider Card
   card: {
-    backgroundColor: C.card, borderRadius: 18, padding: 16,
+    backgroundColor: C.card, borderRadius: 18,
+    overflow: "hidden",
     shadowColor: C.shadow, shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 1, shadowRadius: 8, elevation: 3,
   },
+  cardImage: { width: "100%", height: 180 },
+  cardBody: { padding: 16 },
   cardTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   avatar: {
     width: 46, height: 46, borderRadius: 23,
@@ -434,22 +447,15 @@ const s = StyleSheet.create({
   desc: { fontSize: 13, color: C.muted, lineHeight: 18, marginBottom: 4 },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 12 },
 
-  actions: { flexDirection: "row", gap: 10 },
-  callBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, flex: 1,
-    paddingVertical: 11, borderRadius: 12,
-    borderWidth: 1.5, borderColor: C.border,
-  },
-  callText: { fontSize: 13, fontWeight: "700", color: C.primary },
+  // Book Now — full width
   bookBtn: {
-    flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 11, borderRadius: 12,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 13, borderRadius: 12,
     backgroundColor: C.primary,
     shadowColor: C.primary, shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
   },
-  bookText: { color: "#fff", fontSize: 13, fontWeight: "800" },
+  bookText: { color: "#fff", fontSize: 14, fontWeight: "800" },
 
   // Empty
   empty: { alignItems: "center", paddingVertical: 48 },
@@ -457,7 +463,7 @@ const s = StyleSheet.create({
   emptyTitle: { fontSize: 17, fontWeight: "800", color: C.ink, marginBottom: 4 },
   emptyText: { fontSize: 13, color: C.muted, textAlign: "center" },
 
-  // Modal (identical pattern to other screens)
+  // Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   modalSheet: {
     position: "absolute", bottom: 0, left: 0, right: 0,
