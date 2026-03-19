@@ -1,6 +1,15 @@
+import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { ImageBackground, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ImageBackground,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const C = {
   bg: "#F9F5F0",
@@ -15,66 +24,64 @@ const C = {
   shadow: "rgba(107,39,55,0.10)",
 };
 
-const POINTS = [
-  {
-    icon: "person-circle-outline",
-    title: "One Profile, Many Jobs",
-    body: "Create your labour profile once and start receiving job requests from farmers nearby.",
-  },
-  {
-    icon: "people-outline",
-    title: "No Middlemen",
-    body: "Connect directly with farmers in your area — keep every rupee you earn.",
-  },
-  {
-    icon: "cash-outline",
-    title: "Fair & Transparent Pay",
-    body: "Agreed wages upfront, confirmed bookings, no last-minute surprises.",
-  },
-  {
-    icon: "bar-chart-outline",
-    title: "Track Your Work",
-    body: "View upcoming jobs, completed work, and total earnings from your dashboard.",
-  },
-];
-
 export default function LabourHome() {
+  const { t } = useLang();
+
+  const POINTS = [
+    {
+      icon: "person-circle-outline",
+      titleKey: "labourHome.point1Title",
+      bodyKey: "labourHome.point1Body",
+    },
+    {
+      icon: "people-outline",
+      titleKey: "labourHome.point2Title",
+      bodyKey: "labourHome.point2Body",
+    },
+    {
+      icon: "cash-outline",
+      titleKey: "labourHome.point3Title",
+      bodyKey: "labourHome.point3Body",
+    },
+    {
+      icon: "bar-chart-outline",
+      titleKey: "labourHome.point4Title",
+      bodyKey: "labourHome.point4Body",
+    },
+  ];
+
   return (
     <ScrollView
       style={s.screen}
       contentContainerStyle={s.container}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Hero Header ── */}
+      {/* Hero Header */}
       <View style={s.header}>
         <View style={s.headerBadge}>
-          <Text style={s.headerBadgeText}>AGRIDAS • LABOUR PORTAL</Text>
+          <Text style={s.headerBadgeText}>{t("labourHome.badge")}</Text>
         </View>
-        <Text style={s.headerTitle}>Welcome{"\n"}Back 👋</Text>
-        <Text style={s.headerSub}>
-          Find work nearby and earn consistently every season
-        </Text>
+        <Text style={s.headerTitle}>{t("labourHome.title")}</Text>
+        <Text style={s.headerSub}>{t("labourHome.subtitle")}</Text>
 
-        {/* Stats strip */}
         <View style={s.statsStrip}>
-          <View style={s.statItem}>
-            <Text style={s.statNum}>3500+</Text>
-            <Text style={s.statLabel}>Workers Registered</Text>
-          </View>
-          <View style={s.statDivider} />
-          <View style={s.statItem}>
-            <Text style={s.statNum}>12K+</Text>
-            <Text style={s.statLabel}>Jobs Completed</Text>
-          </View>
-          <View style={s.statDivider} />
-          <View style={s.statItem}>
-            <Text style={s.statNum}>500+</Text>
-            <Text style={s.statLabel}>Villages Covered</Text>
-          </View>
+          {[
+            { num: "3500+", labelKey: "labourHome.workersRegistered" },
+            { num: "12K+", labelKey: "labourHome.jobsCompleted" },
+            { num: "500+", labelKey: "labourHome.villagesCovered" },
+          ].map((st, i) => (
+            <View key={i} style={{ flex: 1, flexDirection: "row" }}>
+              {i > 0 && <View style={s.statDivider} />}
+              <View style={s.statItem}>
+                <Text style={s.statNum}>{st.num}</Text>
+                <Text style={s.statLabel}>{t(st.labelKey)}</Text>
+              </View>
+            </View>
+          ))}
         </View>
       </View>
 
-      {/* ── Hero Image ── */}
+      {/* Hero Image */}
       <View style={s.imageCard}>
         <ImageBackground
           source={require("../../assets/images/laborimage.jpg")}
@@ -84,27 +91,25 @@ export default function LabourHome() {
           <View style={s.imageOverlay}>
             <View style={s.imageBadge}>
               <Ionicons name="star" size={12} color={C.accent} />
-              <Text style={s.imageBadgeText}>Workers earn ₹800–₹1500 per day</Text>
+              <Text style={s.imageBadgeText}>{t("labourHome.topEarners")}</Text>
             </View>
           </View>
         </ImageBackground>
       </View>
 
-      {/* ── Tagline ── */}
+      {/* Tagline */}
       <View style={s.taglineBlock}>
-        <Text style={s.taglineTitle}>Your skills deserve daily income</Text>
-        <Text style={s.taglineSub}>
-          Offer your labour services to nearby farmers and get paid fairly for your hard work — no waiting, no hassle.
-        </Text>
+        <Text style={s.taglineTitle}>{t("labourHome.taglineTitle")}</Text>
+        <Text style={s.taglineSub}>{t("labourHome.taglineSub")}</Text>
       </View>
 
-      {/* ── Benefits Card ── */}
+      {/* Benefits Card */}
       <View style={s.benefitsCard}>
         <View style={s.benefitsHeader}>
           <View style={s.benefitsIconWrap}>
             <Text style={{ fontSize: 16 }}>✨</Text>
           </View>
-          <Text style={s.benefitsTitle}>Why workers choose Agridas</Text>
+          <Text style={s.benefitsTitle}>{t("labourHome.whyWorkers")}</Text>
         </View>
 
         {POINTS.map((p, i) => (
@@ -112,37 +117,50 @@ export default function LabourHome() {
             key={i}
             style={[
               s.pointRow,
-              i === POINTS.length - 1 && { borderBottomWidth: 0, marginBottom: 0, paddingBottom: 0 },
+              i === POINTS.length - 1 && {
+                borderBottomWidth: 0,
+                marginBottom: 0,
+                paddingBottom: 0,
+              },
             ]}
           >
             <View style={s.pointIconWrap}>
               <Ionicons name={p.icon as any} size={20} color={C.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={s.pointTitle}>{p.title}</Text>
-              <Text style={s.pointBody}>{p.body}</Text>
+              <Text style={s.pointTitle}>{t(p.titleKey)}</Text>
+              <Text style={s.pointBody}>{t(p.bodyKey)}</Text>
             </View>
           </View>
         ))}
       </View>
 
-      {/* ── CTA Banner ── */}
+      {/* CTA Banner */}
       <View style={s.ctaBanner}>
         <View style={{ flex: 1 }}>
-          <Text style={s.ctaTitle}>Ready to find work?</Text>
-          <Text style={s.ctaSub}>Register your labour profile in under 2 minutes.</Text>
+          <Text style={s.ctaTitle}>{t("labourHome.ctaTitle")}</Text>
+          <Text style={s.ctaSub}>{t("labourHome.ctaSub")}</Text>
         </View>
-        <Ionicons name="arrow-forward-circle" size={36} color="#fff" style={{ opacity: 0.9 }} />
+        <Ionicons
+          name="arrow-forward-circle"
+          size={36}
+          color="#fff"
+          style={{ opacity: 0.9 }}
+        />
       </View>
 
-      {/* ── Back Button ── */}
+      {/* Back Button */}
       <TouchableOpacity
         style={s.backBtn}
         onPress={() => router.replace("/(tabs)")}
         activeOpacity={0.8}
       >
-        <Ionicons name="arrow-back-circle-outline" size={20} color={C.primary} />
-        <Text style={s.backBtnText}>Back to Buyer Home</Text>
+        <Ionicons
+          name="arrow-back-circle-outline"
+          size={20}
+          color={C.primary}
+        />
+        <Text style={s.backBtnText}>{t("labourHome.backToBuyer")}</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -151,8 +169,6 @@ export default function LabourHome() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   container: { paddingBottom: 60 },
-
-  // ── Header
   header: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 56 : 40,
@@ -162,13 +178,30 @@ const s = StyleSheet.create({
   headerBadge: {
     backgroundColor: "rgba(255,255,255,0.15)",
     alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, marginBottom: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 12,
   },
-  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
-  headerTitle: { color: "#fff", fontSize: 34, fontWeight: "800", lineHeight: 40, marginBottom: 8 },
-  headerSub: { color: "rgba(255,255,255,0.75)", fontSize: 14, lineHeight: 20, marginBottom: 24 },
-
+  headerBadgeText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: "800",
+    lineHeight: 40,
+    marginBottom: 8,
+  },
+  headerSub: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
   statsStrip: {
     flexDirection: "row",
     backgroundColor: "rgba(255,255,255,0.12)",
@@ -178,10 +211,14 @@ const s = StyleSheet.create({
   },
   statItem: { flex: 1, alignItems: "center" },
   statNum: { color: "#fff", fontSize: 18, fontWeight: "900" },
-  statLabel: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: "600", marginTop: 2, textAlign: "center" },
+  statLabel: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 2,
+    textAlign: "center",
+  },
   statDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.2)" },
-
-  // ── Image
   imageCard: {
     marginHorizontal: 16,
     marginTop: -20,
@@ -197,60 +234,116 @@ const s = StyleSheet.create({
   imageStyle: { borderRadius: 20 },
   imageOverlay: { padding: 14, backgroundColor: "rgba(0,0,0,0.25)" },
   imageBadge: {
-    flexDirection: "row", alignItems: "center", alignSelf: "flex-start",
-    gap: 5, backgroundColor: "rgba(255,255,255,0.92)",
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 5,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
   },
   imageBadgeText: { fontSize: 11, fontWeight: "700", color: C.ink },
-
-  // ── Tagline
-  taglineBlock: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 4, alignItems: "center" },
-  taglineTitle: { fontSize: 22, fontWeight: "800", color: C.ink, textAlign: "center", lineHeight: 28, marginBottom: 8 },
-  taglineSub: { fontSize: 14, color: C.muted, textAlign: "center", lineHeight: 21 },
-
-  // ── Benefits
-  benefitsCard: {
-    backgroundColor: C.card, borderRadius: 20,
-    marginHorizontal: 16, marginTop: 20, padding: 20,
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1, shadowRadius: 12, elevation: 4,
+  taglineBlock: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 4,
+    alignItems: "center",
   },
-  benefitsHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 18 },
+  taglineTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: C.ink,
+    textAlign: "center",
+    lineHeight: 28,
+    marginBottom: 8,
+  },
+  taglineSub: {
+    fontSize: 14,
+    color: C.muted,
+    textAlign: "center",
+    lineHeight: 21,
+  },
+  benefitsCard: {
+    backgroundColor: C.card,
+    borderRadius: 20,
+    marginHorizontal: 16,
+    marginTop: 20,
+    padding: 20,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  benefitsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 18,
+  },
   benefitsIconWrap: {
-    width: 36, height: 36, borderRadius: 10,
-    backgroundColor: C.accentLight, justifyContent: "center", alignItems: "center",
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: C.accentLight,
+    justifyContent: "center",
+    alignItems: "center",
   },
   benefitsTitle: { fontSize: 16, fontWeight: "700", color: C.ink },
   pointRow: {
-    flexDirection: "row", alignItems: "flex-start", gap: 14,
-    paddingBottom: 16, marginBottom: 16,
-    borderBottomWidth: 1, borderColor: C.border,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 14,
+    paddingBottom: 16,
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderColor: C.border,
   },
   pointIconWrap: {
-    width: 40, height: 40, borderRadius: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: C.primaryFaint,
-    justifyContent: "center", alignItems: "center", flexShrink: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
   },
-  pointTitle: { fontSize: 14, fontWeight: "700", color: C.ink, marginBottom: 3 },
+  pointTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: C.ink,
+    marginBottom: 3,
+  },
   pointBody: { fontSize: 13, color: C.muted, lineHeight: 19 },
-
-  // ── CTA Banner
   ctaBanner: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: C.primary,
-    marginHorizontal: 16, marginTop: 16,
-    borderRadius: 18, padding: 20,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3, shadowRadius: 12, elevation: 6,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 18,
+    padding: 20,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
   ctaTitle: { color: "#fff", fontSize: 16, fontWeight: "800", marginBottom: 3 },
   ctaSub: { color: "rgba(255,255,255,0.75)", fontSize: 12 },
-
-  // ── Back button
   backBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8,
-    marginHorizontal: 16, marginTop: 16, paddingVertical: 16,
-    borderRadius: 16, borderWidth: 1.5, borderColor: C.border, backgroundColor: C.card,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    backgroundColor: C.card,
   },
   backBtnText: { fontSize: 15, fontWeight: "700", color: C.primary },
 });

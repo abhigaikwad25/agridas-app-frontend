@@ -1,22 +1,23 @@
-// app/search-labour.tsx
+import { useLang } from "@/contexts/LanguageContext";
 import { getLocationList } from "@/services/authStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Linking,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Linking,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { BASE_URL } from "@/constants/api";
 import api from "../utils/axiosinstance";
+
 const C = {
   bg: "#F4F6F4",
   card: "#FFFFFF",
@@ -59,20 +60,29 @@ interface ProviderType {
 }
 
 export default function SearchLabourScreen() {
+  const { t } = useLang();
+
   const [locations, setLocations] = useState<LocationType[]>([]);
-  const [filteredLocations, setFilteredLocations] = useState<LocationType[]>([]);
+  const [filteredLocations, setFilteredLocations] = useState<LocationType[]>(
+    [],
+  );
   const [search, setSearch] = useState("");
   const [showLocationModal, setShowLocationModal] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<LocationType | null>(null);
-
+  const [selectedLocation, setSelectedLocation] = useState<LocationType | null>(
+    null,
+  );
   const [providers, setProviders] = useState<ProviderType[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // ── Same location logic ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!search) { setFilteredLocations(locations); return; }
+    if (!search) {
+      setFilteredLocations(locations);
+      return;
+    }
     const lower = search.toLowerCase();
-    setFilteredLocations(locations.filter((l) => l.taluka.toLowerCase().includes(lower)));
+    setFilteredLocations(
+      locations.filter((l) => l.taluka.toLowerCase().includes(lower)),
+    );
   }, [search, locations]);
 
   const fetchLocations = async () => {
@@ -86,9 +96,12 @@ export default function SearchLabourScreen() {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem("authToken");
-      const res = await api.get(`${BASE_URL}/labour/by-location/${locationId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await api.get(
+        `${BASE_URL}/labour/by-location/${locationId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       setProviders(res.data || []);
     } catch (e) {
       console.log("Error fetching providers:", e);
@@ -99,10 +112,8 @@ export default function SearchLabourScreen() {
 
   const handleCall = (phone: string) => Linking.openURL(`tel:${phone}`);
 
-  // ── Provider card ────────────────────────────────────────────────────────
   const ProviderCard = ({ item }: { item: ProviderType }) => (
     <View style={s.card}>
-      {/* Top row */}
       <View style={s.cardTop}>
         <View style={s.avatar}>
           <Text style={s.avatarText}>{item.name?.charAt(0).toUpperCase()}</Text>
@@ -111,23 +122,26 @@ export default function SearchLabourScreen() {
           <Text style={s.providerName}>{item.name}</Text>
           <View style={s.metaRow}>
             <Ionicons name="people-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>{item.numberOfWorkers} workers</Text>
+            <Text style={s.metaText}>
+              {item.numberOfWorkers} {t("searchLabour.workers_count")}
+            </Text>
             {item.experience > 0 && (
               <>
                 <Text style={s.metaDot}>·</Text>
                 <Ionicons name="time-outline" size={12} color={C.muted} />
-                <Text style={s.metaText}>{item.experience}y exp</Text>
+                <Text style={s.metaText}>
+                  {item.experience} {t("searchLabour.exp")}
+                </Text>
               </>
             )}
           </View>
         </View>
         <View style={s.priceBadge}>
           <Text style={s.priceText}>₹{item.pricePerDay}</Text>
-          <Text style={s.priceUnit}>/day</Text>
+          <Text style={s.priceUnit}>{t("searchLabour.perDay")}</Text>
         </View>
       </View>
 
-      {/* Skills */}
       {item.skills?.length > 0 && (
         <View style={s.chipsRow}>
           {item.skills.map((sk, i) => (
@@ -141,24 +155,24 @@ export default function SearchLabourScreen() {
         </View>
       )}
 
-      {/* Description */}
       {item.description ? (
-        <Text style={s.desc} numberOfLines={2}>{item.description}</Text>
+        <Text style={s.desc} numberOfLines={2}>
+          {item.description}
+        </Text>
       ) : null}
 
       <View style={s.divider} />
 
-      {/* Actions */}
       <View style={s.actions}>
         <TouchableOpacity
           style={s.callBtn}
           onPress={() => handleCall(item.ownerPhoneno)}
         >
           <Ionicons name="call-outline" size={15} color={C.primary} />
-          <Text style={s.callText}>Call</Text>
+          <Text style={s.callText}>{t("searchLabour.call")}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={s.bookBtn}>
-          <Text style={s.bookText}>Book Labour</Text>
+          <Text style={s.bookText}>{t("searchLabour.bookLabour")}</Text>
           <Ionicons name="arrow-forward" size={14} color="#fff" />
         </TouchableOpacity>
       </View>
@@ -168,7 +182,10 @@ export default function SearchLabourScreen() {
   const ListHeader = () => (
     <View style={s.listHeader}>
       <Text style={s.listCount}>
-        {providers.length} provider{providers.length !== 1 ? "s" : ""} found
+        {providers.length}{" "}
+        {providers.length !== 1
+          ? t("searchLabour.providersFound")
+          : t("searchLabour.providerFound")}
       </Text>
       {selectedLocation && (
         <View style={s.locationChip}>
@@ -181,55 +198,61 @@ export default function SearchLabourScreen() {
 
   return (
     <View style={s.screen}>
-      {/* ── Hero Header ── */}
+      {/* Hero Header */}
       <View style={s.hero}>
         <View style={s.heroBadge}>
-          <Text style={s.heroBadgeText}>AGRIDAS • BUYER</Text>
+          <Text style={s.heroBadgeText}>{t("searchLabour.badge")}</Text>
         </View>
-        <Text style={s.heroTitle}>Find Skilled{"\n"}Labour</Text>
-        <Text style={s.heroSub}>Trusted farm workers near your location 👨‍🌾</Text>
+        <Text style={s.heroTitle}>{t("searchLabour.title")}</Text>
+        <Text style={s.heroSub}>{t("searchLabour.subtitle")}</Text>
 
         <View style={s.statsStrip}>
           {[
-            { num: "500+", label: "Workers"  },
-            { num: "120+", label: "Villages" },
-            { num: "4.8★", label: "Rating"   },
+            { num: "500+", labelKey: "searchLabour.workers" },
+            { num: "120+", labelKey: "searchLabour.villages" },
+            { num: "4.8★", labelKey: "searchLabour.rating" },
           ].map((st, i) => (
             <React.Fragment key={i}>
               {i > 0 && <View style={s.statSep} />}
               <View style={s.statItem}>
                 <Text style={s.statNum}>{st.num}</Text>
-                <Text style={s.statLabel}>{st.label}</Text>
+                <Text style={s.statLabel}>{t(st.labelKey)}</Text>
               </View>
             </React.Fragment>
           ))}
         </View>
       </View>
 
-      {/* ── Location selector (floating card) ── */}
+      {/* Location selector */}
       <View style={s.filterCard}>
         <Text style={s.filterLabel}>
-          <Ionicons name="location-outline" size={14} color={C.primary} /> Select Location
+          <Ionicons name="location-outline" size={14} color={C.primary} />{" "}
+          {t("searchLabour.selectLocation")}
         </Text>
         <TouchableOpacity
           style={[s.dropdownBtn, selectedLocation && s.dropdownBtnFilled]}
-          onPress={() => { fetchLocations(); setShowLocationModal(true); }}
+          onPress={() => {
+            fetchLocations();
+            setShowLocationModal(true);
+          }}
           activeOpacity={0.8}
         >
-          <Text style={[s.dropdownText, !selectedLocation && { color: C.muted }]}>
+          <Text
+            style={[s.dropdownText, !selectedLocation && { color: C.muted }]}
+          >
             {selectedLocation
               ? `${selectedLocation.taluka}, ${selectedLocation.district}`
-              : "Choose Taluka"}
+              : t("searchLabour.chooseTaluka")}
           </Text>
           <Ionicons name="chevron-down" size={16} color={C.muted} />
         </TouchableOpacity>
       </View>
 
-      {/* ── Results ── */}
+      {/* Results */}
       {loading ? (
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={s.loadingText}>Finding workers…</Text>
+          <Text style={s.loadingText}>{t("searchLabour.findingWorkers")}</Text>
         </View>
       ) : (
         <FlatList
@@ -244,21 +267,29 @@ export default function SearchLabourScreen() {
             selectedLocation ? (
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>🌾</Text>
-                <Text style={s.emptyTitle}>No workers found</Text>
-                <Text style={s.emptyText}>Try a different taluka or check back later.</Text>
+                <Text style={s.emptyTitle}>
+                  {t("searchLabour.noWorkersTitle")}
+                </Text>
+                <Text style={s.emptyText}>
+                  {t("searchLabour.noWorkersText")}
+                </Text>
               </View>
             ) : (
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>📍</Text>
-                <Text style={s.emptyTitle}>Select a location</Text>
-                <Text style={s.emptyText}>Choose a taluka above to see available workers.</Text>
+                <Text style={s.emptyTitle}>
+                  {t("searchLabour.selectLocationTitle")}
+                </Text>
+                <Text style={s.emptyText}>
+                  {t("searchLabour.selectLocationText")}
+                </Text>
               </View>
             )
           }
         />
       )}
 
-      {/* ─── Location Modal ─────────────────────────────────────────────── */}
+      {/* Location Modal */}
       <Modal visible={showLocationModal} transparent animationType="slide">
         <TouchableOpacity
           style={s.modalOverlay}
@@ -267,13 +298,13 @@ export default function SearchLabourScreen() {
         />
         <View style={s.modalSheet}>
           <View style={s.modalHandle} />
-          <Text style={s.modalTitle}>Select Taluka</Text>
-          <Text style={s.modalSub}>Search by taluka name</Text>
+          <Text style={s.modalTitle}>{t("searchLabour.selectTaluka")}</Text>
+          <Text style={s.modalSub}>{t("searchLabour.searchByTaluka")}</Text>
 
           <View style={s.searchRow}>
             <Text style={s.searchIcon}>🔍</Text>
             <TextInput
-              placeholder="e.g. Pune, Nashik…"
+              placeholder={t("searchLabour.searchPlaceholder")}
               value={search}
               onChangeText={setSearch}
               style={s.searchInput}
@@ -282,7 +313,11 @@ export default function SearchLabourScreen() {
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch("")}>
-                <Text style={{ color: C.muted, fontSize: 18, paddingHorizontal: 8 }}>×</Text>
+                <Text
+                  style={{ color: C.muted, fontSize: 18, paddingHorizontal: 8 }}
+                >
+                  ×
+                </Text>
               </TouchableOpacity>
             )}
           </View>
@@ -290,7 +325,9 @@ export default function SearchLabourScreen() {
           {filteredLocations.length === 0 && (
             <View style={s.modalEmpty}>
               <Text style={{ fontSize: 30 }}>🗺️</Text>
-              <Text style={{ color: C.muted, marginTop: 8 }}>No results found</Text>
+              <Text style={{ color: C.muted, marginTop: 8 }}>
+                {t("searchLabour.noResults")}
+              </Text>
             </View>
           )}
 
@@ -315,7 +352,9 @@ export default function SearchLabourScreen() {
                 <View style={s.locationDot} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.locationTitle}>{item.taluka}</Text>
-                  <Text style={s.locationSub}>{item.district}, {item.state}</Text>
+                  <Text style={s.locationSub}>
+                    {item.district}, {item.state}
+                  </Text>
                 </View>
                 {selectedLocation?._id === item._id && (
                   <Text style={{ color: C.primary, fontWeight: "700" }}>✓</Text>
@@ -331,8 +370,6 @@ export default function SearchLabourScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-
-  // Hero
   hero: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 56 : 44,
@@ -342,71 +379,123 @@ const s = StyleSheet.create({
   heroBadge: {
     backgroundColor: "rgba(255,255,255,0.15)",
     alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, marginBottom: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 10,
   },
-  heroBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
-  heroTitle: { color: "#fff", fontSize: 30, fontWeight: "800", lineHeight: 36, marginBottom: 6 },
+  heroBadgeText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+  },
+  heroTitle: {
+    color: "#fff",
+    fontSize: 30,
+    fontWeight: "800",
+    lineHeight: 36,
+    marginBottom: 6,
+  },
   heroSub: { color: "rgba(255,255,255,0.75)", fontSize: 13, marginBottom: 22 },
-
   statsStrip: {
     flexDirection: "row",
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14, paddingVertical: 12,
+    borderRadius: 14,
+    paddingVertical: 12,
   },
   statItem: { flex: 1, alignItems: "center" },
-  statSep: { width: 1, backgroundColor: "rgba(255,255,255,0.2)", marginVertical: 6 },
+  statSep: {
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginVertical: 6,
+  },
   statNum: { color: "#fff", fontSize: 17, fontWeight: "900" },
-  statLabel: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: "600", marginTop: 2 },
-
-  // Filter card (floats over hero)
+  statLabel: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 2,
+  },
   filterCard: {
     marginHorizontal: 16,
     marginTop: -36,
     backgroundColor: C.card,
-    borderRadius: 18, padding: 16,
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1, shadowRadius: 12, elevation: 6,
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
     marginBottom: 8,
   },
-  filterLabel: { fontSize: 13, fontWeight: "700", color: C.ink, marginBottom: 10 },
-  dropdownBtn: {
-    backgroundColor: "#FAFAF9", borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 13,
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: C.ink,
+    marginBottom: 10,
   },
-  dropdownBtnFilled: { borderColor: C.primary, backgroundColor: C.primaryFaint },
+  dropdownBtn: {
+    backgroundColor: "#FAFAF9",
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  dropdownBtnFilled: {
+    borderColor: C.primary,
+    backgroundColor: C.primaryFaint,
+  },
   dropdownText: { fontSize: 15, color: C.ink, fontWeight: "500" },
-
-  // List
   listContent: { paddingHorizontal: 16, paddingBottom: 48, paddingTop: 4 },
   listHeader: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
   },
   listCount: { fontSize: 14, fontWeight: "700", color: C.ink },
   locationChip: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: C.primaryFaint,
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
   locationChipText: { fontSize: 12, fontWeight: "700", color: C.primary },
-
-  // Loading
-  loadingWrap: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10, paddingTop: 60 },
+  loadingWrap: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 60,
+  },
   loadingText: { fontSize: 14, color: C.muted, fontWeight: "600" },
-
-  // Provider Card
   card: {
-    backgroundColor: C.card, borderRadius: 18, padding: 16,
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1, shadowRadius: 8, elevation: 3,
+    backgroundColor: C.card,
+    borderRadius: 18,
+    padding: 16,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   cardTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   avatar: {
-    width: 46, height: 46, borderRadius: 23,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: C.primaryFaint,
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarText: { fontSize: 18, fontWeight: "800", color: C.primary },
   providerName: { fontSize: 15, fontWeight: "800", color: C.ink },
@@ -414,76 +503,136 @@ const s = StyleSheet.create({
   metaText: { fontSize: 12, color: C.muted },
   metaDot: { color: C.muted, fontSize: 12 },
   priceBadge: {
-    flexDirection: "row", alignItems: "baseline", gap: 2,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 2,
     backgroundColor: C.primaryFaint,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
   },
   priceText: { fontSize: 15, fontWeight: "900", color: C.primary },
   priceUnit: { fontSize: 11, color: C.primary, fontWeight: "600" },
-
-  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginBottom: 10 },
+  chipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 7,
+    marginBottom: 10,
+  },
   chip: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: C.primaryFaint,
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
-    borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   chipEmoji: { fontSize: 13 },
   chipText: { fontSize: 12, fontWeight: "600", color: C.primary },
-
   desc: { fontSize: 13, color: C.muted, lineHeight: 18, marginBottom: 4 },
   divider: { height: 1, backgroundColor: C.border, marginVertical: 12 },
-
   actions: { flexDirection: "row", gap: 10 },
   callBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, flex: 1,
-    paddingVertical: 11, borderRadius: 12,
-    borderWidth: 1.5, borderColor: C.border,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: C.border,
   },
   callText: { fontSize: 13, fontWeight: "700", color: C.primary },
   bookBtn: {
-    flex: 2, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, paddingVertical: 11, borderRadius: 12,
+    flex: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: 12,
     backgroundColor: C.primary,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   bookText: { color: "#fff", fontSize: 13, fontWeight: "800" },
-
-  // Empty
   empty: { alignItems: "center", paddingVertical: 48 },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 17, fontWeight: "800", color: C.ink, marginBottom: 4 },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 4,
+  },
   emptyText: { fontSize: 13, color: C.muted, textAlign: "center" },
-
-  // Modal (identical pattern to other screens)
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   modalSheet: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    backgroundColor: "#fff", borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingTop: 12, paddingHorizontal: 20, paddingBottom: 40, maxHeight: "80%",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 12,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    maxHeight: "80%",
   },
   modalHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: C.border, alignSelf: "center", marginBottom: 18,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: C.border,
+    alignSelf: "center",
+    marginBottom: 18,
   },
-  modalTitle: { fontSize: 22, fontWeight: "800", color: C.ink, marginBottom: 4 },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 4,
+  },
   modalSub: { fontSize: 13, color: C.muted, marginBottom: 16 },
   searchRow: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: "#FAFAF9", borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 14, paddingHorizontal: 12, marginBottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FAFAF9",
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    marginBottom: 4,
   },
   searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, paddingVertical: 13, fontSize: 15, color: C.ink },
   modalEmpty: { alignItems: "center", paddingVertical: 32 },
   locationRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingVertical: 14, borderBottomWidth: 1, borderColor: "#F0EDE9", gap: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: "#F0EDE9",
+    gap: 12,
   },
-  locationRowActive: { backgroundColor: C.primaryFaint, marginHorizontal: -20, paddingHorizontal: 20 },
-  locationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
+  locationRowActive: {
+    backgroundColor: C.primaryFaint,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  locationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: C.accent,
+  },
   locationTitle: { fontSize: 15, fontWeight: "600", color: C.ink },
   locationSub: { fontSize: 12, color: C.muted, marginTop: 2 },
 });

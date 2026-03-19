@@ -1,5 +1,5 @@
-// app/(tabs)/index.tsx — Buyer Home
 import { setLocationList } from "@/services/authStorage";
+import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -28,43 +28,47 @@ const C = {
   shadow: "rgba(30,127,67,0.12)",
 };
 
-const ACTIONS = [
-  {
-    icon: "construct-outline",
-    emoji: "🚜",
-    title: "Rent Farming Tools",
-    desc: "Browse machines available near your location",
-    route: "/rent-machine",
-    bg: C.primaryFaint,
-    color: C.primary,
-  },
-  {
-    icon: "people-outline",
-    emoji: "👨‍🌾",
-    title: "Hire Labour",
-    desc: "Find skilled workers for your farm",
-    route: "/rentLabor",
-    bg: "#FDF3E7",
-    color: C.accent,
-  },
-  {
-    icon: "receipt-outline",
-    emoji: "📦",
-    title: "My Bookings",
-    desc: "Track your current and past bookings",
-    route: "",
-    bg: "#EEF2FF",
-    color: "#4338CA",
-  },
-];
-
 const QUICK_STATS = [
-  { label: "Machines\nNearby",  value: "24+", icon: "hardware-chip-outline" },
-  { label: "Labour\nAvailable", value: "60+", icon: "people-outline"        },
-  { label: "Villages\nCovered", value: "300+",icon: "location-outline"      },
+  {
+    labelKey: "home.machinesNearby",
+    value: "24+",
+    icon: "hardware-chip-outline",
+  },
+  { labelKey: "home.labourAvailable", value: "60+", icon: "people-outline" },
+  { labelKey: "home.villagesCovered", value: "300+", icon: "location-outline" },
 ];
 
 export default function HomeScreen() {
+  const { t } = useLang();
+
+  // Actions use t() so they re-render when language changes
+  const ACTIONS = [
+    {
+      emoji: "🚜",
+      titleKey: "home.rentTools",
+      descKey: "home.rentToolsDesc",
+      route: "/rent-machine",
+      bg: C.primaryFaint,
+      color: C.primary,
+    },
+    {
+      emoji: "👨‍🌾",
+      titleKey: "home.hireLabour",
+      descKey: "home.hireLabourDesc",
+      route: "/rentLabor",
+      bg: "#FDF3E7",
+      color: C.accent,
+    },
+    {
+      emoji: "📦",
+      titleKey: "home.myBookings",
+      descKey: "home.myBookingsDesc",
+      route: "",
+      bg: "#EEF2FF",
+      color: "#4338CA",
+    },
+  ];
+
   useEffect(() => {
     const init = async () => {
       await setLocationList();
@@ -84,35 +88,36 @@ export default function HomeScreen() {
       contentContainerStyle={s.container}
       showsVerticalScrollIndicator={false}
     >
-      {/* ── Header ── */}
+      {/* Header */}
       <View style={s.header}>
         <View style={s.headerTop}>
           <View>
             <View style={s.headerBadge}>
-              <Text style={s.headerBadgeText}>AGRIDAS • BUYER</Text>
+              <Text style={s.headerBadgeText}>{t("home.badge")}</Text>
             </View>
-            <Text style={s.welcome}>Welcome Back 👋</Text>
-            <Text style={s.subtitle}>
-              साधने भाड्याने घ्या किंवा मजूर मिळवा अगदी सहज
-            </Text>
+            <Text style={s.welcome}>{t("home.welcomeBack")}</Text>
+            <Text style={s.subtitle}>{t("home.subtitle")}</Text>
           </View>
           <View style={s.avatarWrap}>
             <Text style={s.avatarEmoji}>🌾</Text>
           </View>
         </View>
 
-        {/* Quick stats */}
+        {/* Stats strip */}
         <View style={s.statsStrip}>
           {QUICK_STATS.map((stat, i) => (
-            <View key={i} style={[s.statItem, i < QUICK_STATS.length - 1 && s.statBorder]}>
+            <View
+              key={i}
+              style={[s.statItem, i < QUICK_STATS.length - 1 && s.statBorder]}
+            >
               <Text style={s.statValue}>{stat.value}</Text>
-              <Text style={s.statLabel}>{stat.label}</Text>
+              <Text style={s.statLabel}>{t(stat.labelKey)}</Text>
             </View>
           ))}
         </View>
       </View>
 
-      {/* ── Banner ── */}
+      {/* Banner */}
       <View style={s.bannerWrap}>
         <ImageBackground
           source={require("@/assets/images/farm-banner.png")}
@@ -120,18 +125,22 @@ export default function HomeScreen() {
           imageStyle={s.bannerImage}
         >
           <View style={s.bannerOverlay}>
-            <Text style={s.bannerTitle}>Find resources{"\n"}near your farm</Text>
+            <Text style={s.bannerTitle}>
+              {t("home.rentTools")}
+              {"\n"}
+              {t("home.rentToolsDesc")}
+            </Text>
             <TouchableOpacity style={s.bannerBtn} activeOpacity={0.85}>
-              <Text style={s.bannerBtnText}>Explore Now</Text>
+              <Text style={s.bannerBtnText}>{t("home.exploreNow")}</Text>
               <Ionicons name="arrow-forward" size={14} color="#fff" />
             </TouchableOpacity>
           </View>
         </ImageBackground>
       </View>
 
-      {/* ── Actions ── */}
+      {/* Actions */}
       <View style={s.section}>
-        <Text style={s.sectionTitle}>What would you like to do?</Text>
+        <Text style={s.sectionTitle}>{t("home.whatToDo")}</Text>
 
         {ACTIONS.map((action, i) => (
           <TouchableOpacity
@@ -144,8 +153,8 @@ export default function HomeScreen() {
               <Text style={s.actionEmoji}>{action.emoji}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={s.actionTitle}>{action.title}</Text>
-              <Text style={s.actionDesc}>{action.desc}</Text>
+              <Text style={s.actionTitle}>{t(action.titleKey)}</Text>
+              <Text style={s.actionDesc}>{t(action.descKey)}</Text>
             </View>
             <View style={[s.actionArrow, { backgroundColor: action.bg }]}>
               <Ionicons name="arrow-forward" size={15} color={action.color} />
@@ -154,16 +163,17 @@ export default function HomeScreen() {
         ))}
       </View>
 
-      {/* ── Info Banner ── */}
+      {/* Info banner */}
       <View style={s.infoBanner}>
         <View style={s.infoIconWrap}>
-          <Ionicons name="information-circle-outline" size={22} color={C.primary} />
+          <Ionicons
+            name="information-circle-outline"
+            size={22}
+            color={C.primary}
+          />
         </View>
-        <Text style={s.infoText}>
-          AgriConnect helps farmers save time and reduce costs by connecting them with nearby resources.
-        </Text>
+        <Text style={s.infoText}>{t("home.infoText")}</Text>
       </View>
-
     </ScrollView>
   );
 }
@@ -171,8 +181,6 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   container: { paddingBottom: 60 },
-
-  // Header
   header: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 56 : 40,
@@ -188,20 +196,33 @@ const s = StyleSheet.create({
   headerBadge: {
     backgroundColor: "rgba(255,255,255,0.15)",
     alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, marginBottom: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 10,
   },
-  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
+  headerBadgeText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+  },
   welcome: { color: "#fff", fontSize: 26, fontWeight: "800", marginBottom: 6 },
-  subtitle: { color: "rgba(255,255,255,0.75)", fontSize: 13, lineHeight: 18, maxWidth: 220 },
+  subtitle: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 13,
+    lineHeight: 18,
+    maxWidth: 220,
+  },
   avatarWrap: {
-    width: 52, height: 52, borderRadius: 26,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "rgba(255,255,255,0.15)",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
   avatarEmoji: { fontSize: 26 },
-
-  // Stats strip
   statsStrip: {
     flexDirection: "row",
     backgroundColor: "rgba(255,255,255,0.12)",
@@ -210,9 +231,13 @@ const s = StyleSheet.create({
   statItem: { flex: 1, alignItems: "center", paddingVertical: 12 },
   statBorder: { borderRightWidth: 1, borderColor: "rgba(255,255,255,0.2)" },
   statValue: { color: "#fff", fontSize: 18, fontWeight: "900" },
-  statLabel: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: "600", marginTop: 2, textAlign: "center" },
-
-  // Banner
+  statLabel: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 2,
+    textAlign: "center",
+  },
   bannerWrap: {
     marginHorizontal: 16,
     marginTop: -20,
@@ -220,7 +245,9 @@ const s = StyleSheet.create({
     overflow: "hidden",
     shadowColor: C.shadow,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 1, shadowRadius: 14, elevation: 8,
+    shadowOpacity: 1,
+    shadowRadius: 14,
+    elevation: 8,
   },
   banner: { height: 200, justifyContent: "flex-end" },
   bannerImage: { borderRadius: 20 },
@@ -229,52 +256,92 @@ const s = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
   },
-
-  bannerTitle: { color: "#fff", fontSize: 20, fontWeight: "800", lineHeight: 26, marginBottom: 12 },
+  bannerTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+    lineHeight: 26,
+    marginBottom: 12,
+  },
   bannerBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     alignSelf: "flex-start",
     backgroundColor: C.primary,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   bannerBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-
-  // Section
   section: { paddingHorizontal: 16, paddingTop: 24 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", color: C.ink, marginBottom: 14 },
-
-  // Action cards
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 14,
+  },
   actionCard: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: C.card, borderRadius: 16, padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 1, shadowRadius: 8, elevation: 3,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   actionIconWrap: {
-    width: 50, height: 50, borderRadius: 14,
-    justifyContent: "center", alignItems: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 14,
+    justifyContent: "center",
+    alignItems: "center",
   },
   actionEmoji: { fontSize: 24 },
-  actionTitle: { fontSize: 15, fontWeight: "800", color: C.ink, marginBottom: 3 },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 3,
+  },
   actionDesc: { fontSize: 12, color: C.muted, lineHeight: 17 },
   actionArrow: {
-    width: 32, height: 32, borderRadius: 10,
-    justifyContent: "center", alignItems: "center",
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
   },
-
-  // Info banner
   infoBanner: {
-    flexDirection: "row", alignItems: "center", gap: 12,
-    marginHorizontal: 16, marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
     backgroundColor: C.primaryFaint,
-    borderRadius: 14, padding: 14,
-    borderWidth: 1, borderColor: C.border,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   infoIconWrap: {
-    width: 36, height: 36, borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: "#fff",
-    justifyContent: "center", alignItems: "center", flexShrink: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
   },
-  infoText: { flex: 1, fontSize: 13, color: C.primary, lineHeight: 19, fontWeight: "500" },
+  infoText: {
+    flex: 1,
+    fontSize: 13,
+    color: C.primary,
+    lineHeight: 19,
+    fontWeight: "500",
+  },
 });
