@@ -1,4 +1,4 @@
-// app/machines.tsx
+import { useLang } from "@/contexts/LanguageContext";
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -18,11 +18,11 @@ import {
 } from "react-native";
 import api from "./utils/axiosinstance";
 import { BASE_URL } from "@/constants/api";
+
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
 const IMAGE_HEIGHT = 220;
 
-// ─── Buyer-mode palette ───────────────────────────────────────────────────────
 const C = {
   bg: "#F4F6F4",
   card: "#FFFFFF",
@@ -39,6 +39,7 @@ const C = {
 };
 
 export default function MachinesScreen() {
+  const { t } = useLang();
   const { machineType, lat, long } = useLocalSearchParams<{
     machineType: string;
     lat: string;
@@ -56,7 +57,7 @@ export default function MachinesScreen() {
         const token = await AsyncStorage.getItem("authToken");
         const res = await api.get(
           `${BASE_URL}/machine/list?lat=${lat}&long=${long}&machineType=${machineType}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
         setMachines(res.data);
       } catch (err) {
@@ -70,27 +71,26 @@ export default function MachinesScreen() {
 
   const filteredMachines = machines.filter((item) => {
     const name = item.name?.toLowerCase() || "";
-    const location = `${item.taluka} ${item.district} ${item.state}`.toLowerCase();
+    const location =
+      `${item.taluka} ${item.district} ${item.state}`.toLowerCase();
     return (
       name.includes(searchText.toLowerCase()) ||
       location.includes(searchText.toLowerCase())
     );
   });
 
-  // ── Loading state ────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <View style={s.loadingScreen}>
         <View style={s.loadingCard}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={s.loadingTitle}>Finding machines…</Text>
-          <Text style={s.loadingText}>Searching near your location</Text>
+          <Text style={s.loadingTitle}>{t("machines.loadingTitle")}</Text>
+          <Text style={s.loadingText}>{t("machines.loadingText")}</Text>
         </View>
       </View>
     );
   }
 
-  // ── Card ─────────────────────────────────────────────────────────────────────
   const renderItem = ({ item }: any) => {
     const imageUrl = item.images?.[0];
     const locationLine = `${item.taluka}, ${item.district}, ${item.state}`;
@@ -102,16 +102,12 @@ export default function MachinesScreen() {
         onPress={() => router.push(`/machine-details?machineId=${item._id}`)}
       >
         <View style={s.card}>
-          {/* Image */}
           <ImageBackground
             source={{ uri: imageUrl }}
             style={s.imageBackground}
             imageStyle={s.imageStyle}
           >
-            {/* Gradient overlay */}
             <View style={s.imageGradient} />
-
-            {/* Top badges */}
             <View style={s.imageTopRow}>
               <View style={s.typeBadge}>
                 <Text style={s.typeBadgeText}>
@@ -122,19 +118,17 @@ export default function MachinesScreen() {
                 <Ionicons name="heart-outline" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
-
-            {/* Price pill over image */}
             <View style={s.pricePill}>
               <Text style={s.pricePillText}>₹{item.pricePerDay}</Text>
               <Text style={s.pricePillSub}>/day</Text>
             </View>
           </ImageBackground>
 
-          {/* Body */}
           <View style={s.cardBody}>
-            {/* Title + Rating */}
             <View style={s.titleRow}>
-              <Text style={s.title} numberOfLines={1}>{item.name}</Text>
+              <Text style={s.title} numberOfLines={1}>
+                {item.name}
+              </Text>
               <View style={s.ratingWrap}>
                 <Ionicons name="star" size={13} color="#F59E0B" />
                 <Text style={s.ratingText}>5.0</Text>
@@ -142,20 +136,25 @@ export default function MachinesScreen() {
               </View>
             </View>
 
-            {/* Description */}
             {item.description ? (
-              <Text style={s.desc} numberOfLines={2}>{item.description}</Text>
+              <Text style={s.desc} numberOfLines={2}>
+                {item.description}
+              </Text>
             ) : null}
 
-            {/* Location */}
             <View style={s.locationRow}>
               <View style={s.locationIconWrap}>
-                <FontAwesome5 name="map-marker-alt" size={11} color={C.primary} />
+                <FontAwesome5
+                  name="map-marker-alt"
+                  size={11}
+                  color={C.primary}
+                />
               </View>
-              <Text style={s.locationText} numberOfLines={1}>{locationLine}</Text>
+              <Text style={s.locationText} numberOfLines={1}>
+                {locationLine}
+              </Text>
             </View>
 
-            {/* Footer chips */}
             <View style={s.footer}>
               <View style={s.chipRow}>
                 {item.crops?.slice(0, 2).map((c: string, i: number) => (
@@ -169,12 +168,13 @@ export default function MachinesScreen() {
                   </View>
                 )}
               </View>
-
               <TouchableOpacity
                 style={s.bookBtn}
-                onPress={() => router.push(`/machine-details?machineId=${item._id}`)}
+                onPress={() =>
+                  router.push(`/machine-details?machineId=${item._id}`)
+                }
               >
-                <Text style={s.bookBtnText}>View</Text>
+                <Text style={s.bookBtnText}>{t("machines.view")}</Text>
                 <Ionicons name="arrow-forward" size={13} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -184,11 +184,13 @@ export default function MachinesScreen() {
     );
   };
 
-  // ── List header ──────────────────────────────────────────────────────────────
   const ListHeader = () => (
     <View style={s.listHeader}>
       <Text style={s.resultCount}>
-        {filteredMachines.length} machine{filteredMachines.length !== 1 ? "s" : ""} found
+        {filteredMachines.length}{" "}
+        {filteredMachines.length !== 1
+          ? t("machines.machinesFound")
+          : t("machines.machineFound")}
       </Text>
       {machineType && (
         <View style={s.filterBadge}>
@@ -202,25 +204,27 @@ export default function MachinesScreen() {
   const ListEmpty = () => (
     <View style={s.emptyState}>
       <Text style={s.emptyIcon}>🚜</Text>
-      <Text style={s.emptyTitle}>No machines found</Text>
-      <Text style={s.emptyText}>Try a different search or expand your location range.</Text>
+      <Text style={s.emptyTitle}>{t("machines.noMachinesTitle")}</Text>
+      <Text style={s.emptyText}>{t("machines.noMachinesText")}</Text>
     </View>
   );
 
   return (
     <SafeAreaView style={s.safe}>
-      {/* ── Page Header ── */}
       <View style={s.header}>
         <View style={s.headerBadge}>
-          <Text style={s.headerBadgeText}>AGRIDAS • BUYER</Text>
+          <Text style={s.headerBadgeText}>{t("machines.badge")}</Text>
         </View>
-        <Text style={s.headerTitle}>Available Machines</Text>
-
-        {/* Search bar */}
+        <Text style={s.headerTitle}>{t("machines.title")}</Text>
         <View style={s.searchRow}>
-          <Ionicons name="search" size={18} color={C.muted} style={{ marginRight: 8 }} />
+          <Ionicons
+            name="search"
+            size={18}
+            color={C.muted}
+            style={{ marginRight: 8 }}
+          />
           <TextInput
-            placeholder="Search by name or location…"
+            placeholder={t("machines.searchPlaceholder")}
             style={s.searchInput}
             value={searchText}
             onChangeText={setSearchText}
@@ -234,7 +238,6 @@ export default function MachinesScreen() {
         </View>
       </View>
 
-      {/* ── List ── */}
       <FlatList
         data={filteredMachines}
         keyExtractor={(item) => item._id}
@@ -249,22 +252,29 @@ export default function MachinesScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.bg },
-
-  // ── Loading
-  loadingScreen: { flex: 1, backgroundColor: C.bg, justifyContent: "center", alignItems: "center" },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: C.bg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   loadingCard: {
-    backgroundColor: C.card, borderRadius: 20, padding: 32,
-    alignItems: "center", gap: 10, minWidth: 220,
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1, shadowRadius: 12, elevation: 6,
+    backgroundColor: C.card,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: "center",
+    gap: 10,
+    minWidth: 220,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   loadingTitle: { fontSize: 16, fontWeight: "700", color: C.ink },
   loadingText: { fontSize: 13, color: C.muted },
-
-  // ── Header
   header: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 0 : 16,
@@ -274,111 +284,195 @@ const s = StyleSheet.create({
   headerBadge: {
     backgroundColor: "rgba(255,255,255,0.15)",
     alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, marginBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 8,
   },
-  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
-  headerTitle: { color: "#fff", fontSize: 24, fontWeight: "800", marginBottom: 14 },
-
-  // Search bar inside header
+  headerBadgeText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 24,
+    fontWeight: "800",
+    marginBottom: 14,
+  },
   searchRow: {
-    flexDirection: "row", alignItems: "center",
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 11,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   searchInput: { flex: 1, fontSize: 14, color: C.ink },
-
-  // ── List
   listContent: { padding: 16, paddingBottom: 48 },
   listHeader: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 14,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
   },
   resultCount: { fontSize: 14, fontWeight: "700", color: C.ink },
   filterBadge: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: C.primaryFaint, paddingHorizontal: 10, paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: C.primaryFaint,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 20,
   },
-  filterBadgeText: { fontSize: 12, fontWeight: "700", color: C.primary, textTransform: "capitalize" },
-
-  // ── Card
+  filterBadgeText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: C.primary,
+    textTransform: "capitalize",
+  },
   cardWrap: {},
   card: {
-    width: CARD_WIDTH, borderRadius: 18,
-    backgroundColor: C.card, overflow: "hidden",
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1, shadowRadius: 10, elevation: 4,
+    width: CARD_WIDTH,
+    borderRadius: 18,
+    backgroundColor: C.card,
+    overflow: "hidden",
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 4,
   },
-
-  // Image
-  imageBackground: { width: "100%", height: IMAGE_HEIGHT, justifyContent: "space-between" },
+  imageBackground: {
+    width: "100%",
+    height: IMAGE_HEIGHT,
+    justifyContent: "space-between",
+  },
   imageStyle: { borderTopLeftRadius: 18, borderTopRightRadius: 18 },
   imageGradient: {
     ...StyleSheet.absoluteFillObject,
-    borderTopLeftRadius: 18, borderTopRightRadius: 18,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     backgroundColor: "rgba(0,0,0,0.18)",
   },
   imageTopRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", padding: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
   },
   typeBadge: {
     backgroundColor: "rgba(0,0,0,0.45)",
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
-  typeBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700", textTransform: "capitalize" },
+  typeBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
   heartBtn: {
-    width: 34, height: 34, borderRadius: 17,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "rgba(0,0,0,0.35)",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
   pricePill: {
-    flexDirection: "row", alignItems: "baseline", gap: 2,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 2,
     alignSelf: "flex-start",
     backgroundColor: C.primary,
-    marginLeft: 12, marginBottom: 12,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20,
+    marginLeft: 12,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
   },
   pricePillText: { color: "#fff", fontSize: 16, fontWeight: "900" },
-  pricePillSub: { color: "rgba(255,255,255,0.8)", fontSize: 11, fontWeight: "600" },
-
-  // Card Body
+  pricePillSub: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 11,
+    fontWeight: "600",
+  },
   cardBody: { padding: 14 },
-  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
-  title: { fontSize: 16, fontWeight: "800", color: C.ink, flex: 1, marginRight: 8 },
+  titleRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: C.ink,
+    flex: 1,
+    marginRight: 8,
+  },
   ratingWrap: { flexDirection: "row", alignItems: "center", gap: 3 },
   ratingText: { fontWeight: "700", fontSize: 13, color: C.ink },
   reviewsText: { color: C.muted, fontSize: 12 },
-
   desc: { fontSize: 13, color: C.muted, lineHeight: 19, marginBottom: 10 },
-
-  locationRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 12,
+  },
   locationIconWrap: {
-    width: 22, height: 22, borderRadius: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
     backgroundColor: C.primaryFaint,
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
   locationText: { fontSize: 12, color: C.muted, flex: 1 },
-
-  // Footer
-  footer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
   chipRow: { flexDirection: "row", gap: 6, flexWrap: "wrap", flex: 1 },
   chip: {
-    backgroundColor: C.primaryFaint, paddingHorizontal: 8, paddingVertical: 3,
+    backgroundColor: C.primaryFaint,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 20,
   },
   chipText: { fontSize: 11, fontWeight: "600", color: C.primary },
   bookBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: C.primary,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   bookBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-
-  // ── Empty state
-  emptyState: { alignItems: "center", paddingVertical: 48, paddingHorizontal: 32 },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 48,
+    paddingHorizontal: 32,
+  },
   emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyTitle: { fontSize: 18, fontWeight: "800", color: C.ink, marginBottom: 6 },
-  emptyText: { fontSize: 14, color: C.muted, textAlign: "center", lineHeight: 20 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: C.muted,
+    textAlign: "center",
+    lineHeight: 20,
+  },
 });

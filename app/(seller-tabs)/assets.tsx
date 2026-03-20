@@ -1,4 +1,4 @@
-// app/owner-machines.tsx
+import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
@@ -19,9 +19,9 @@ import {
 } from "react-native";
 import api from "../utils/axiosinstance";
 import { BASE_URL } from "@/constants/api";
+
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
-
 
 const C = {
   bg: "#F9F5F0",
@@ -39,6 +39,7 @@ const C = {
 };
 
 export default function OwnerMachinesScreen() {
+  const { t } = useLang();
   const router = useRouter();
   const [machines, setMachines] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,37 +59,39 @@ export default function OwnerMachinesScreen() {
     }
   };
 
-  // Re-fetch every time this screen comes into focus
-  // so newly added machines appear immediately
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
       fetchMachines();
-    }, [])
+    }, []),
   );
 
   const handleDelete = (id: string) => {
-    Alert.alert("Delete Machine", "This will permanently remove the listing. Are you sure?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: async () => {
-          setDeletingId(id);
-          try {
-            const token = await AsyncStorage.getItem("authToken");
-            await api.delete(`${BASE_URL}/machine/delete/${id}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            setMachines((prev) => prev.filter((m) => m._id !== id));
-          } catch (err) {
-            Alert.alert("Error", "Failed to delete. Try again.");
-          } finally {
-            setDeletingId(null);
-          }
+    Alert.alert(
+      t("ownerMachines.deleteMachine"),
+      t("ownerMachines.deleteConfirm"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("ownerMachines.delete"),
+          style: "destructive",
+          onPress: async () => {
+            setDeletingId(id);
+            try {
+              const token = await AsyncStorage.getItem("authToken");
+              await api.delete(`${BASE_URL}/machine/delete/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              setMachines((prev) => prev.filter((m) => m._id !== id));
+            } catch (err) {
+              Alert.alert(t("common.error"), t("ownerMachines.deleteError"));
+            } finally {
+              setDeletingId(null);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
   if (loading) {
@@ -96,7 +99,7 @@ export default function OwnerMachinesScreen() {
       <View style={s.loadingScreen}>
         <View style={s.loadingCard}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={s.loadingTitle}>Loading your machines…</Text>
+          <Text style={s.loadingTitle}>{t("ownerMachines.loading")}</Text>
         </View>
       </View>
     );
@@ -108,35 +111,33 @@ export default function OwnerMachinesScreen() {
 
     return (
       <View style={s.card}>
-        {/* Image */}
         <View style={s.imageWrap}>
           <Image
             source={{ uri: imageUrl }}
             style={s.image}
             resizeMode="cover"
           />
-          {/* Type badge */}
           {item.machineType?.[0] && (
             <View style={s.typeBadge}>
               <Text style={s.typeBadgeText}>
-                {item.machineType[0].charAt(0).toUpperCase() + item.machineType[0].slice(1)}
+                {item.machineType[0].charAt(0).toUpperCase() +
+                  item.machineType[0].slice(1)}
               </Text>
             </View>
           )}
         </View>
 
-        {/* Body */}
         <View style={s.cardBody}>
-          {/* Title + price */}
           <View style={s.titleRow}>
-            <Text style={s.title} numberOfLines={1}>{item.name}</Text>
+            <Text style={s.title} numberOfLines={1}>
+              {item.name}
+            </Text>
             <View style={s.priceBadge}>
               <Text style={s.priceText}>₹{item.pricePerDay}</Text>
               <Text style={s.priceUnit}>/ac</Text>
             </View>
           </View>
 
-          {/* Location */}
           <View style={s.locRow}>
             <Ionicons name="location-outline" size={13} color={C.muted} />
             <Text style={s.locText} numberOfLines={1}>
@@ -144,7 +145,6 @@ export default function OwnerMachinesScreen() {
             </Text>
           </View>
 
-          {/* Crop chips */}
           {item.crops?.length > 0 && (
             <View style={s.chips}>
               {item.crops.slice(0, 3).map((c: string, i: number) => (
@@ -160,20 +160,23 @@ export default function OwnerMachinesScreen() {
             </View>
           )}
 
-          {/* Divider */}
           <View style={s.divider} />
 
-          {/* Action buttons */}
           <View style={s.btnRow}>
             <TouchableOpacity
               style={s.updateBtn}
               activeOpacity={0.85}
               onPress={() =>
-                router.push({ pathname: "../update-machine", params: { id: item._id } })
+                router.push({
+                  pathname: "../update-machine",
+                  params: { id: item._id },
+                })
               }
             >
               <Ionicons name="create-outline" size={16} color="#fff" />
-              <Text style={s.updateBtnText}>Edit Listing</Text>
+              <Text style={s.updateBtnText}>
+                {t("ownerMachines.editListing")}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -187,7 +190,9 @@ export default function OwnerMachinesScreen() {
               ) : (
                 <>
                   <Ionicons name="trash-outline" size={16} color={C.red} />
-                  <Text style={s.deleteBtnText}>Delete</Text>
+                  <Text style={s.deleteBtnText}>
+                    {t("ownerMachines.delete")}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -200,7 +205,10 @@ export default function OwnerMachinesScreen() {
   const ListHeader = () => (
     <View style={s.listHeader}>
       <Text style={s.listCount}>
-        {machines.length} machine{machines.length !== 1 ? "s" : ""} listed
+        {machines.length}{" "}
+        {machines.length !== 1
+          ? t("ownerMachines.machinesListed")
+          : t("ownerMachines.machineListed")}
       </Text>
       <TouchableOpacity
         style={s.addBtn}
@@ -208,7 +216,7 @@ export default function OwnerMachinesScreen() {
         activeOpacity={0.85}
       >
         <Ionicons name="add" size={16} color="#fff" />
-        <Text style={s.addBtnText}>Add New</Text>
+        <Text style={s.addBtnText}>{t("ownerMachines.addNew")}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -216,49 +224,46 @@ export default function OwnerMachinesScreen() {
   const ListEmpty = () => (
     <View style={s.empty}>
       <Text style={s.emptyIcon}>🚜</Text>
-      <Text style={s.emptyTitle}>No machines yet</Text>
-      <Text style={s.emptyText}>
-        Add your first machine and start receiving bookings from nearby farmers.
-      </Text>
+      <Text style={s.emptyTitle}>{t("ownerMachines.noMachinesTitle")}</Text>
+      <Text style={s.emptyText}>{t("ownerMachines.noMachinesText")}</Text>
       <TouchableOpacity
         style={s.emptyBtn}
         onPress={() => router.push("/add-machine")}
       >
-        <Text style={s.emptyBtnText}>Add Machine</Text>
+        <Text style={s.emptyBtnText}>{t("ownerMachines.addMachine")}</Text>
       </TouchableOpacity>
     </View>
   );
 
   return (
     <SafeAreaView style={s.screen}>
-      {/* ── Header ── */}
       <View style={s.header}>
         <View style={s.headerBadge}>
-          <Text style={s.headerBadgeText}>AGRIDAS • SELLER</Text>
+          <Text style={s.headerBadgeText}>{t("ownerMachines.badge")}</Text>
         </View>
-        <Text style={s.headerTitle}>Your Machines</Text>
-        <Text style={s.headerSub}>Manage, update or remove your listings</Text>
+        <Text style={s.headerTitle}>{t("ownerMachines.title")}</Text>
+        <Text style={s.headerSub}>{t("ownerMachines.subtitle")}</Text>
 
-        {/* Summary strip */}
         <View style={s.strip}>
-          <View style={s.stripItem}>
-            <Text style={s.stripNum}>{machines.length}</Text>
-            <Text style={s.stripLabel}>Listed</Text>
-          </View>
-          <View style={s.stripSep} />
-          <View style={s.stripItem}>
-            <Text style={s.stripNum}>
-              {machines.filter((m) => m.isAvailable !== false).length}
-            </Text>
-            <Text style={s.stripLabel}>Active</Text>
-          </View>
-          <View style={s.stripSep} />
-          <View style={s.stripItem}>
-            <Text style={s.stripNum}>
-              {machines.reduce((sum, m) => sum + (m.bookingsCount || 0), 0)}
-            </Text>
-            <Text style={s.stripLabel}>Bookings</Text>
-          </View>
+          {[
+            { num: machines.length, labelKey: "ownerMachines.listed" },
+            {
+              num: machines.filter((m) => m.isAvailable !== false).length,
+              labelKey: "ownerMachines.active",
+            },
+            {
+              num: machines.reduce((sum, m) => sum + (m.bookingsCount || 0), 0),
+              labelKey: "ownerMachines.bookings",
+            },
+          ].map((st, i) => (
+            <React.Fragment key={i}>
+              {i > 0 && <View style={s.stripSep} />}
+              <View style={s.stripItem}>
+                <Text style={s.stripNum}>{st.num}</Text>
+                <Text style={s.stripLabel}>{t(st.labelKey)}</Text>
+              </View>
+            </React.Fragment>
+          ))}
         </View>
       </View>
 
@@ -278,17 +283,25 @@ export default function OwnerMachinesScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-
-  loadingScreen: { flex: 1, backgroundColor: C.bg, justifyContent: "center", alignItems: "center" },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: C.bg,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   loadingCard: {
-    backgroundColor: C.card, borderRadius: 20, padding: 32,
-    alignItems: "center", gap: 10,
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1, shadowRadius: 12, elevation: 6,
+    backgroundColor: C.card,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: "center",
+    gap: 10,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 12,
+    elevation: 6,
   },
   loadingTitle: { fontSize: 15, fontWeight: "700", color: C.ink },
-
-  // ── Header
   header: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 0 : 20,
@@ -298,38 +311,62 @@ const s = StyleSheet.create({
   headerBadge: {
     backgroundColor: "rgba(255,255,255,0.15)",
     alignSelf: "flex-start",
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 20, marginBottom: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+    marginBottom: 10,
   },
-  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
-  headerTitle: { color: "#fff", fontSize: 28, fontWeight: "800", marginBottom: 4 },
+  headerBadgeText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 28,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
   headerSub: { color: "rgba(255,255,255,0.7)", fontSize: 13, marginBottom: 20 },
-
   strip: {
     flexDirection: "row",
     backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14, paddingVertical: 12, paddingHorizontal: 8,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
   },
   stripItem: { flex: 1, alignItems: "center" },
   stripNum: { color: "#fff", fontSize: 20, fontWeight: "900" },
-  stripLabel: { color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: "600", marginTop: 2 },
-  stripSep: { width: 1, backgroundColor: "rgba(255,255,255,0.2)", marginVertical: 4 },
-
-  // ── List
+  stripLabel: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 10,
+    fontWeight: "600",
+    marginTop: 2,
+  },
+  stripSep: {
+    width: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginVertical: 4,
+  },
   listContent: { padding: 16, paddingBottom: 50 },
   listHeader: {
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 14,
   },
   listCount: { fontSize: 14, fontWeight: "700", color: C.ink },
   addBtn: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     backgroundColor: C.primary,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
   },
   addBtnText: { color: "#fff", fontSize: 13, fontWeight: "700" },
-
-  // ── Card
   card: {
     width: CARD_WIDTH,
     backgroundColor: C.card,
@@ -337,70 +374,114 @@ const s = StyleSheet.create({
     overflow: "hidden",
     shadowColor: C.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1, shadowRadius: 10, elevation: 4,
+    shadowOpacity: 1,
+    shadowRadius: 10,
+    elevation: 4,
   },
-
   imageWrap: { position: "relative" },
   image: { width: "100%", height: 200 },
   typeBadge: {
-    position: "absolute", top: 12, left: 12,
+    position: "absolute",
+    top: 12,
+    left: 12,
     backgroundColor: "rgba(0,0,0,0.42)",
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
-  typeBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700", textTransform: "capitalize" },
-
+  typeBadgeText: {
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "capitalize",
+  },
   cardBody: { padding: 16 },
-
   titleRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "center", marginBottom: 6,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
   },
-  title: { fontSize: 16, fontWeight: "800", color: C.ink, flex: 1, marginRight: 8 },
+  title: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: C.ink,
+    flex: 1,
+    marginRight: 8,
+  },
   priceBadge: {
-    flexDirection: "row", alignItems: "baseline", gap: 2,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 2,
     backgroundColor: C.primaryFaint,
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
   },
   priceText: { fontSize: 14, fontWeight: "900", color: C.primary },
   priceUnit: { fontSize: 11, color: C.primary, fontWeight: "600" },
-
-  locRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 10 },
+  locRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 10,
+  },
   locText: { fontSize: 12, color: C.muted, flex: 1 },
-
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginBottom: 12 },
   chip: {
     backgroundColor: C.primaryFaint,
-    paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20,
-    borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   chipText: { fontSize: 11, fontWeight: "600", color: C.primary },
-
   divider: { height: 1, backgroundColor: C.border, marginBottom: 12 },
-
   btnRow: { flexDirection: "row", gap: 10 },
-
   updateBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, backgroundColor: C.primary,
-    paddingVertical: 12, borderRadius: 12,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: C.primary,
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   updateBtnText: { color: "#fff", fontSize: 14, fontWeight: "700" },
-
   deleteBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 6, backgroundColor: C.redLight,
-    paddingVertical: 12, borderRadius: 12,
-    borderWidth: 1, borderColor: "#F5C6C6",
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: C.redLight,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F5C6C6",
   },
   deleteBtnText: { color: C.red, fontSize: 14, fontWeight: "700" },
-
-  // ── Empty
   empty: { alignItems: "center", paddingVertical: 48, paddingHorizontal: 32 },
   emptyIcon: { fontSize: 52, marginBottom: 14 },
-  emptyTitle: { fontSize: 18, fontWeight: "800", color: C.ink, marginBottom: 6 },
-  emptyText: { fontSize: 14, color: C.muted, textAlign: "center", lineHeight: 20, marginBottom: 20 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: C.muted,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
+  },
   emptyBtn: {
-    backgroundColor: C.primary, paddingHorizontal: 24, paddingVertical: 13,
+    backgroundColor: C.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 13,
     borderRadius: 13,
   },
   emptyBtnText: { color: "#fff", fontSize: 15, fontWeight: "700" },

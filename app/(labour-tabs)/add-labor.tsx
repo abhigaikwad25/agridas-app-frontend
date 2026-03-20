@@ -1,21 +1,21 @@
+import { useLang } from "@/contexts/LanguageContext";
 import { BASE_URL } from "@/constants/api";
 import { getLocationList, getToken } from "@/services/authStorage";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  FlatList,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  FlatList,
-  Platform,
 } from "react-native";
 
 const CROPS = ["Rice", "Cotton", "Wheat", "Soybean", "Sugarcane"];
-
 const CROP_ICONS: Record<string, string> = {
   Rice: "🌾",
   Cotton: "🌿",
@@ -40,15 +40,6 @@ const SKILL_ICONS: Record<string, string> = {
   drone_operator: "🚁",
 };
 
-const SKILL_LABELS: Record<string, string> = {
-  harvesting: "Harvesting",
-  sowing: "Sowing",
-  spraying: "Spraying",
-  driver: "Driver",
-  drone_operator: "Drone Op.",
-};
-
-// ─── Colours ────────────────────────────────────────────────────────────────
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
@@ -66,6 +57,16 @@ const C = {
 };
 
 export default function AddLabourScreen() {
+  const { t } = useLang();
+
+  const SKILL_LABELS: Record<string, string> = {
+    harvesting: t("addLabour.harvesting"),
+    sowing: t("addLabour.sowing"),
+    spraying: t("addLabour.spraying"),
+    driver: t("addLabour.driver"),
+    drone_operator: t("addLabour.droneOp"),
+  };
+
   const [locations, setLocations] = useState<any[]>([]);
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
@@ -106,10 +107,13 @@ export default function AddLabourScreen() {
   };
 
   useEffect(() => {
-    if (!search) { setFilteredLocations(locations); return; }
+    if (!search) {
+      setFilteredLocations(locations);
+      return;
+    }
     const lower = search.toLowerCase();
     setFilteredLocations(
-      locations.filter((l) => l.taluka.toLowerCase().includes(lower))
+      locations.filter((l) => l.taluka.toLowerCase().includes(lower)),
     );
   }, [search, locations]);
 
@@ -130,7 +134,10 @@ export default function AddLabourScreen() {
   };
 
   const submitLabour = async () => {
-    if (!selectedLocation) { Alert.alert("Error", "Please select location"); return; }
+    if (!selectedLocation) {
+      Alert.alert(t("common.error"), t("addLabour.selectLocation"));
+      return;
+    }
     const token = await getToken();
     const payload = {
       taluka: form.taluka,
@@ -149,18 +156,30 @@ export default function AddLabourScreen() {
     };
     const res = await fetch(`${BASE_URL}/laborProvider/register`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(payload),
     });
     const result = await res.json();
-    if (!res.ok) { Alert.alert("Error", JSON.stringify(result)); return; }
-    Alert.alert("Success", "Labour provider added successfully! 🎉");
+    if (!res.ok) {
+      Alert.alert(t("common.error"), JSON.stringify(result));
+      return;
+    }
+    Alert.alert(t("common.success"), t("addLabour.success"));
     resetForm();
   };
 
-  // ─── Sub-components ────────────────────────────────────────────────────────
-
-  const SectionHeader = ({ icon, title, subtitle }: { icon: string; title: string; subtitle?: string }) => (
+  const SectionHeader = ({
+    icon,
+    title,
+    subtitle,
+  }: {
+    icon: string;
+    title: string;
+    subtitle?: string;
+  }) => (
     <View style={s.sectionHeader}>
       <View style={s.sectionIconWrap}>
         <Text style={s.sectionIcon}>{icon}</Text>
@@ -172,17 +191,31 @@ export default function AddLabourScreen() {
     </View>
   );
 
-  const FieldLabel = ({ label, required }: { label: string; required?: boolean }) => (
+  const FieldLabel = ({
+    label,
+    required,
+  }: {
+    label: string;
+    required?: boolean;
+  }) => (
     <Text style={s.label}>
-      {label}{required && <Text style={{ color: C.accent }}> *</Text>}
+      {label}
+      {required && <Text style={{ color: C.accent }}> *</Text>}
     </Text>
   );
 
   const PricingCard = ({
-    icon, label, value, onChangeText, hint,
+    icon,
+    label,
+    value,
+    onChangeText,
+    hint,
   }: {
-    icon: string; label: string; value: string;
-    onChangeText: (v: string) => void; hint?: string;
+    icon: string;
+    label: string;
+    value: string;
+    onChangeText: (v: string) => void;
+    hint?: string;
   }) => (
     <View style={s.pricingCard}>
       <Text style={s.pricingIcon}>{icon}</Text>
@@ -230,7 +263,9 @@ export default function AddLabourScreen() {
         <Text style={[s.cropName, active && s.cropNameActive]}>{name}</Text>
         {active && (
           <View style={s.cropCheckDot}>
-            <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>✓</Text>
+            <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>
+              ✓
+            </Text>
           </View>
         )}
       </TouchableOpacity>
@@ -244,47 +279,61 @@ export default function AddLabourScreen() {
         contentContainerStyle={s.container}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Header ── */}
+        {/* Header */}
         <View style={s.header}>
           <View style={s.headerBadge}>
-            <Text style={s.headerBadgeText}>PROVIDER REGISTRATION</Text>
+            <Text style={s.headerBadgeText}>{t("addLabour.badge")}</Text>
           </View>
-          <Text style={s.headerTitle}>Add Labour{"\n"}Provider</Text>
-          <Text style={s.headerSub}>
-            Fill in the details to register a new agricultural labour provider.
-          </Text>
+          <Text style={s.headerTitle}>{t("addLabour.title")}</Text>
+          <Text style={s.headerSub}>{t("addLabour.subtitle")}</Text>
         </View>
 
-        {/* ── Location Card ── */}
+        {/* Location Card */}
         <View style={s.card}>
-          <SectionHeader icon="📍" title="Location Details" subtitle="Where are the workers based?" />
-
-          <FieldLabel label="Taluka" required />
+          <SectionHeader
+            icon="📍"
+            title={t("addLabour.locationDetails")}
+            subtitle={t("addLabour.locationSub")}
+          />
+          <FieldLabel label={t("addLabour.taluka")} required />
           <TouchableOpacity
             style={[s.dropdownBtn, selectedLocation && s.dropdownBtnFilled]}
-            onPress={() => { fetchLocations(); setShowLocationModal(true); }}
+            onPress={() => {
+              fetchLocations();
+              setShowLocationModal(true);
+            }}
             activeOpacity={0.8}
           >
             <Text style={[s.dropdownText, !form.taluka && { color: C.muted }]}>
-              {form.taluka || "Select Taluka"}
+              {form.taluka || t("addLabour.selectTaluka")}
             </Text>
             <Text style={s.dropdownChevron}>›</Text>
           </TouchableOpacity>
 
           <View style={s.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <FieldLabel label="District" />
-              <TextInput style={[s.input, s.inputDisabled]} value={form.district}
-                editable={false} placeholder="Auto-filled" placeholderTextColor={C.muted} />
+              <FieldLabel label={t("addLabour.district")} />
+              <TextInput
+                style={[s.input, s.inputDisabled]}
+                value={form.district}
+                editable={false}
+                placeholder={t("addLabour.autoFilled")}
+                placeholderTextColor={C.muted}
+              />
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
-              <FieldLabel label="State" />
-              <TextInput style={[s.input, s.inputDisabled]} value={form.state}
-                editable={false} placeholder="Auto-filled" placeholderTextColor={C.muted} />
+              <FieldLabel label={t("addLabour.state")} />
+              <TextInput
+                style={[s.input, s.inputDisabled]}
+                value={form.state}
+                editable={false}
+                placeholder={t("addLabour.autoFilled")}
+                placeholderTextColor={C.muted}
+              />
             </View>
           </View>
 
-          <FieldLabel label="Pincode" />
+          <FieldLabel label={t("addLabour.pincode")} />
           <TextInput
             style={s.input}
             keyboardType="number-pad"
@@ -296,10 +345,10 @@ export default function AddLabourScreen() {
           />
         </View>
 
-        {/* ── Contact Card ── */}
+        {/* Contact Card */}
         <View style={s.card}>
-          <SectionHeader icon="📞" title="Contact Details" />
-          <FieldLabel label="Owner Phone Number" required />
+          <SectionHeader icon="📞" title={t("addLabour.contactDetails")} />
+          <FieldLabel label={t("addLabour.ownerPhone")} required />
           <View style={s.phoneRow}>
             <View style={s.phonePrefix}>
               <Text style={s.phonePrefixText}>+91</Text>
@@ -317,7 +366,7 @@ export default function AddLabourScreen() {
 
           <View style={[s.row, { marginTop: 14 }]}>
             <View style={{ flex: 1, marginRight: 8 }}>
-              <FieldLabel label="No. of Workers" required />
+              <FieldLabel label={t("addLabour.noOfWorkers")} required />
               <View style={s.workerCountRow}>
                 <TouchableOpacity
                   style={s.counterBtn}
@@ -351,78 +400,110 @@ export default function AddLabourScreen() {
           </View>
         </View>
 
-        {/* ── Pricing Card ── */}
+        {/* Pricing Card */}
         <View style={s.card}>
-          <SectionHeader icon="💰" title="Pricing" subtitle="Set rates for your workers" />
+          <SectionHeader
+            icon="💰"
+            title={t("addLabour.pricing")}
+            subtitle={t("addLabour.pricingSub")}
+          />
           <PricingCard
-            icon="📅" label="Per Day Rate" hint="₹ / day"
+            icon="📅"
+            label={t("addLabour.perDayRate")}
+            hint={t("addLabour.perDayHint")}
             value={form.pricePerDay}
             onChangeText={(v) => setForm({ ...form, pricePerDay: v })}
           />
           <PricingCard
-            icon="⏱️" label="Per Hour Rate" hint="₹ / hr (optional)"
+            icon="⏱️"
+            label={t("addLabour.perHourRate")}
+            hint={t("addLabour.perHourHint")}
             value={form.pricePerHour}
             onChangeText={(v) => setForm({ ...form, pricePerHour: v })}
           />
           <PricingCard
-            icon="🛣️" label="Travel Charge" hint="₹ / km"
+            icon="🛣️"
+            label={t("addLabour.travelCharge")}
+            hint={t("addLabour.travelHint")}
             value={form.deliveryChargePerKm}
             onChangeText={(v) => setForm({ ...form, deliveryChargePerKm: v })}
           />
         </View>
 
-        {/* ── Skills Card ── */}
+        {/* Skills Card */}
         <View style={s.card}>
-          <SectionHeader icon="🛠️" title="Skills" subtitle="Select all that apply" />
+          <SectionHeader
+            icon="🛠️"
+            title={t("addLabour.skills")}
+            subtitle={t("addLabour.skillsSub")}
+          />
           <View style={s.skillGrid}>
-            {Object.values(LabourSkill).map((v) => <SkillChip key={v} value={v} />)}
+            {Object.values(LabourSkill).map((v) => (
+              <SkillChip key={v} value={v} />
+            ))}
           </View>
           {form.skills.length > 0 && (
             <View style={s.selectionPill}>
               <Text style={s.selectionPillText}>
-                {form.skills.length} skill{form.skills.length > 1 ? "s" : ""} selected
+                {form.skills.length}{" "}
+                {form.skills.length > 1
+                  ? t("addLabour.skillsSelected")
+                  : t("addLabour.skillSelected")}
               </Text>
             </View>
           )}
         </View>
 
-        {/* ── Crops Card ── */}
+        {/* Crops Card */}
         <View style={s.card}>
-          <SectionHeader icon="🌾" title="Supported Crops" subtitle="Which crops can your team work with?" />
+          <SectionHeader
+            icon="🌾"
+            title={t("addLabour.supportedCrops")}
+            subtitle={t("addLabour.supportedCropsSub")}
+          />
           <View style={s.cropGrid}>
-            {CROPS.map((c) => <CropTile key={c} name={c} />)}
+            {CROPS.map((c) => (
+              <CropTile key={c} name={c} />
+            ))}
           </View>
         </View>
 
-        {/* ── Description Card ── */}
+        {/* Description Card */}
         <View style={s.card}>
-          <SectionHeader icon="📝" title="Description" subtitle="Any additional info about your team" />
+          <SectionHeader
+            icon="📝"
+            title={t("addLabour.description")}
+            subtitle={t("addLabour.descriptionSub")}
+          />
           <TextInput
             style={s.textarea}
             multiline
             numberOfLines={4}
             value={form.description}
             onChangeText={(v) => setForm({ ...form, description: v })}
-            placeholder="e.g. Experienced team of harvesters, available throughout Kharif season..."
+            placeholder={t("addLabour.descriptionPlaceholder")}
             placeholderTextColor={C.muted}
             textAlignVertical="top"
           />
           <Text style={s.charCount}>{form.description.length} / 500</Text>
         </View>
 
-        {/* ── Submit ── */}
-        <TouchableOpacity style={s.submitBtn} onPress={submitLabour} activeOpacity={0.85}>
-          <Text style={s.submitText}>Register Labour Provider</Text>
+        {/* Submit */}
+        <TouchableOpacity
+          style={s.submitBtn}
+          onPress={submitLabour}
+          activeOpacity={0.85}
+        >
+          <Text style={s.submitText}>{t("addLabour.register")}</Text>
           <Text style={s.submitArrow}>→</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={resetForm} style={s.resetBtn}>
-          <Text style={s.resetText}>Clear all fields</Text>
+          <Text style={s.resetText}>{t("addLabour.clearAll")}</Text>
         </TouchableOpacity>
-
       </ScrollView>
 
-      {/* ─── Location Modal ──────────────────────────────────────────────────── */}
+      {/* Location Modal */}
       <Modal visible={showLocationModal} transparent animationType="slide">
         <TouchableOpacity
           style={s.modalOverlay}
@@ -431,13 +512,12 @@ export default function AddLabourScreen() {
         />
         <View style={s.modalSheet}>
           <View style={s.modalHandle} />
-          <Text style={s.modalTitle}>Select Taluka</Text>
-          <Text style={s.modalSub}>Search by taluka name</Text>
-
+          <Text style={s.modalTitle}>{t("addLabour.selectTalukaTitle")}</Text>
+          <Text style={s.modalSub}>{t("addLabour.searchByTaluka")}</Text>
           <View style={s.searchRow}>
             <Text style={s.searchIcon}>🔍</Text>
             <TextInput
-              placeholder="e.g. Pune, Nashik…"
+              placeholder={t("addLabour.searchPlaceholder")}
               value={search}
               onChangeText={setSearch}
               style={s.searchInput}
@@ -446,18 +526,20 @@ export default function AddLabourScreen() {
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch("")}>
-                <Text style={{ color: C.muted, fontSize: 18, paddingHorizontal: 8 }}>×</Text>
+                <Text
+                  style={{ color: C.muted, fontSize: 18, paddingHorizontal: 8 }}
+                >
+                  ×
+                </Text>
               </TouchableOpacity>
             )}
           </View>
-
           {filteredLocations.length === 0 && (
             <View style={s.emptyState}>
               <Text style={{ fontSize: 32 }}>🗺️</Text>
-              <Text style={s.emptyText}>No results found</Text>
+              <Text style={s.emptyText}>{t("addLabour.noResults")}</Text>
             </View>
           )}
-
           <FlatList
             data={filteredLocations}
             keyExtractor={(item) => item._id}
@@ -472,14 +554,21 @@ export default function AddLabourScreen() {
                 ]}
                 onPress={() => {
                   setSelectedLocation(item);
-                  setForm({ ...form, taluka: item.taluka, district: item.district, state: item.state });
+                  setForm({
+                    ...form,
+                    taluka: item.taluka,
+                    district: item.district,
+                    state: item.state,
+                  });
                   setShowLocationModal(false);
                 }}
               >
                 <View style={s.locationDot} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.locationTitle}>{item.taluka}</Text>
-                  <Text style={s.locationSub}>{item.district}, {item.state}</Text>
+                  <Text style={s.locationSub}>
+                    {item.district}, {item.state}
+                  </Text>
                 </View>
                 {selectedLocation?._id === item._id && (
                   <Text style={{ color: C.primary, fontWeight: "700" }}>✓</Text>
@@ -493,12 +582,9 @@ export default function AddLabourScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   container: { paddingBottom: 100 },
-
-  // ── Header
   header: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 56 : 40,
@@ -513,11 +599,20 @@ const s = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 12,
   },
-  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
-  headerTitle: { color: "#fff", fontSize: 34, fontWeight: "800", lineHeight: 40, marginBottom: 8 },
+  headerBadgeText: {
+    color: "rgba(255,255,255,0.9)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.4,
+  },
+  headerTitle: {
+    color: "#fff",
+    fontSize: 34,
+    fontWeight: "800",
+    lineHeight: 40,
+    marginBottom: 8,
+  },
   headerSub: { color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 18 },
-
-  // ── Card
   card: {
     backgroundColor: C.card,
     borderRadius: 20,
@@ -530,23 +625,24 @@ const s = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-
-  // ── Section Header
-  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 18,
+  },
   sectionIconWrap: {
-    width: 38, height: 38, borderRadius: 10,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     backgroundColor: C.primaryFaint,
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   sectionIcon: { fontSize: 18 },
   sectionTitle: { fontSize: 16, fontWeight: "700", color: C.ink },
   sectionSub: { fontSize: 12, color: C.muted, marginTop: 1 },
-
-  // ── Label
   label: { fontSize: 13, fontWeight: "600", color: C.ink, marginBottom: 6 },
-
-  // ── Input
   input: {
     backgroundColor: C.inputBg,
     borderWidth: 1.5,
@@ -559,11 +655,7 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   inputDisabled: { backgroundColor: "#F5F3F0", color: C.muted },
-
-  // ── Row
   row: { flexDirection: "row" },
-
-  // ── Dropdown
   dropdownBtn: {
     backgroundColor: C.inputBg,
     borderWidth: 1.5,
@@ -576,26 +668,44 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
-  dropdownBtnFilled: { borderColor: C.primary, backgroundColor: C.primaryFaint },
+  dropdownBtnFilled: {
+    borderColor: C.primary,
+    backgroundColor: C.primaryFaint,
+  },
   dropdownText: { fontSize: 15, color: C.ink, fontWeight: "500" },
   dropdownChevron: { fontSize: 22, color: C.muted, marginTop: -2 },
-
-  // ── Phone
   phoneRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   phonePrefix: {
     backgroundColor: C.primaryFaint,
-    borderWidth: 1.5, borderColor: C.border,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
   phonePrefixText: { fontSize: 15, fontWeight: "700", color: C.primary },
-
-  // ── Worker Counter
-  workerCountRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderColor: C.border, borderRadius: 12, overflow: "hidden" },
-  counterBtn: { paddingHorizontal: 16, paddingVertical: 12, backgroundColor: C.primaryFaint },
+  workerCountRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  counterBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: C.primaryFaint,
+  },
   counterBtnText: { fontSize: 20, fontWeight: "700", color: C.primary },
-  counterInput: { flex: 1, fontSize: 18, fontWeight: "700", color: C.ink, paddingVertical: 10, backgroundColor: C.inputBg },
-
-  // ── Pricing
+  counterInput: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: "700",
+    color: C.ink,
+    paddingVertical: 10,
+    backgroundColor: C.inputBg,
+  },
   pricingCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -622,8 +732,6 @@ const s = StyleSheet.create({
     color: C.primary,
     textAlign: "right",
   },
-
-  // ── Skills
   skillGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   skillChip: {
     flexDirection: "row",
@@ -650,8 +758,6 @@ const s = StyleSheet.create({
     borderRadius: 20,
   },
   selectionPillText: { color: C.accent, fontSize: 12, fontWeight: "700" },
-
-  // ── Crops
   cropGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   cropTile: {
     width: "30%",
@@ -668,12 +774,16 @@ const s = StyleSheet.create({
   cropName: { fontSize: 12, fontWeight: "600", color: C.muted },
   cropNameActive: { color: C.primary },
   cropCheckDot: {
-    position: "absolute", top: 7, right: 7,
-    width: 16, height: 16, borderRadius: 8,
-    backgroundColor: C.primary, justifyContent: "center", alignItems: "center",
+    position: "absolute",
+    top: 7,
+    right: 7,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: C.primary,
+    justifyContent: "center",
+    alignItems: "center",
   },
-
-  // ── Textarea
   textarea: {
     backgroundColor: C.inputBg,
     borderWidth: 1.5,
@@ -686,8 +796,6 @@ const s = StyleSheet.create({
     lineHeight: 22,
   },
   charCount: { fontSize: 11, color: C.muted, textAlign: "right", marginTop: 6 },
-
-  // ── Submit
   submitBtn: {
     flexDirection: "row",
     justifyContent: "center",
@@ -703,16 +811,26 @@ const s = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  submitText: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
-  submitArrow: { color: "#fff", fontSize: 20, marginLeft: 10, fontWeight: "700" },
+  submitText: {
+    color: "#fff",
+    fontSize: 17,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+  },
+  submitArrow: {
+    color: "#fff",
+    fontSize: 20,
+    marginLeft: 10,
+    fontWeight: "700",
+  },
   resetBtn: { alignItems: "center", marginTop: 16, paddingVertical: 10 },
   resetText: { color: C.muted, fontSize: 13, fontWeight: "600" },
-
-  // ── Modal
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   modalSheet: {
     position: "absolute",
-    bottom: 0, left: 0, right: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
     backgroundColor: "#fff",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -722,12 +840,19 @@ const s = StyleSheet.create({
     maxHeight: "80%",
   },
   modalHandle: {
-    width: 40, height: 4, borderRadius: 2,
+    width: 40,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: C.border,
     alignSelf: "center",
     marginBottom: 18,
   },
-  modalTitle: { fontSize: 22, fontWeight: "800", color: C.ink, marginBottom: 4 },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 4,
+  },
   modalSub: { fontSize: 13, color: C.muted, marginBottom: 16 },
   searchRow: {
     flexDirection: "row",
@@ -751,8 +876,17 @@ const s = StyleSheet.create({
     borderColor: "#F0EDE9",
     gap: 12,
   },
-  locationRowActive: { backgroundColor: C.primaryFaint, marginHorizontal: -20, paddingHorizontal: 20 },
-  locationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
+  locationRowActive: {
+    backgroundColor: C.primaryFaint,
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+  },
+  locationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: C.accent,
+  },
   locationTitle: { fontSize: 15, fontWeight: "600", color: C.ink },
   locationSub: { fontSize: 12, color: C.muted, marginTop: 2 },
 });

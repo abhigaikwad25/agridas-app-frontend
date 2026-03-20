@@ -1,21 +1,21 @@
 // app/search-labour.tsx
+import { BASE_URL } from "@/constants/api";
 import { getLocationList } from "@/services/authStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Image,
-    Modal,
-    Platform,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Image,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { BASE_URL } from "@/constants/api";
 import api from "../utils/axiosinstance";
 
 const DEFAULT_IMAGE = require("../../assets/images/laborproovider.jpg");

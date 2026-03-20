@@ -1,6 +1,6 @@
-// app/login.tsx
 import { login } from "@/services/authService";
 import { saveToken } from "@/services/authStorage";
+import { useLang } from "@/contexts/LanguageContext";
 import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -37,6 +37,8 @@ const C = {
 };
 
 export default function LoginScreen() {
+  const { t } = useLang();
+
   const [phoneno, setPhoneno] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -50,23 +52,35 @@ export default function LoginScreen() {
   useEffect(() => {
     requestLocationPermission();
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
-      Animated.spring(slideAnim, { toValue: 0, tension: 60, friction: 10, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 700,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 60,
+        friction: 10,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
   const requestLocationPermission = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert("Location Required", "This app needs location permission.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Open Settings", onPress: () => Linking.openSettings() },
+      Alert.alert(t("auth.locationRequired"), t("auth.locationMessage"), [
+        { text: t("common.cancel"), style: "cancel" },
+        { text: t("auth.openSettings"), onPress: () => Linking.openSettings() },
       ]);
     }
   };
 
   const handleLogin = async () => {
-    if (!phoneno || !password) { Alert.alert("Error", "Enter mobile number & password"); return; }
+    if (!phoneno || !password) {
+      Alert.alert(t("common.error"), t("auth.enterDetails"));
+      return;
+    }
     if (loading) return;
     try {
       setLoading(true);
@@ -76,10 +90,13 @@ export default function LoginScreen() {
         await saveToken(data.accesstoken);
         setTimeout(() => router.replace("/(tabs)"), 300);
       } else {
-        Alert.alert("Login Failed", data?.message || "Invalid credentials");
+        Alert.alert(
+          t("auth.loginFailed"),
+          data?.message || t("auth.invalidCredentials"),
+        );
       }
     } catch (err: any) {
-      Alert.alert("Error", err?.message || "Something went wrong");
+      Alert.alert(t("common.error"), err?.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -90,7 +107,6 @@ export default function LoginScreen() {
       style={s.screen}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      {/* ── Organic blobs / background shapes ── */}
       <View style={s.blobTop} />
       <View style={s.blobBottom} />
 
@@ -99,23 +115,24 @@ export default function LoginScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-
-          {/* ── Brand ── */}
+        <Animated.View
+          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        >
+          {/* Brand */}
           <View style={s.brand}>
             <View style={s.logoRing}>
               <View style={s.logoInner}>
                 <Text style={s.logoEmoji}>🌾</Text>
               </View>
             </View>
-            <Text style={s.logoName}>Agridas</Text>
-            <Text style={s.logoSub}>Connecting farmers with resources</Text>
+            <Text style={s.logoName}>{t("common.appName")}</Text>
+            <Text style={s.logoSub}>{t("auth.connectingFarmers")}</Text>
           </View>
 
-          {/* ── Form area ── */}
+          {/* Form */}
           <View style={s.formArea}>
-            <Text style={s.formTitle}>Sign in</Text>
-            <Text style={s.formSub}>Welcome back! Enter your details below.</Text>
+            <Text style={s.formTitle}>{t("auth.signIn")}</Text>
+            <Text style={s.formSub}>{t("auth.signInBack")}</Text>
 
             {/* Phone */}
             <View style={[s.fieldWrap, phoneFocused && s.fieldWrapFocused]}>
@@ -125,7 +142,7 @@ export default function LoginScreen() {
               <View style={s.fieldSep} />
               <TextInput
                 style={s.fieldInput}
-                placeholder="Mobile Number"
+                placeholder={t("auth.mobileNumber")}
                 placeholderTextColor={C.muted}
                 keyboardType="number-pad"
                 maxLength={10}
@@ -135,16 +152,26 @@ export default function LoginScreen() {
                 onBlur={() => setPhoneFocused(false)}
               />
               {phoneno.length === 10 && (
-                <Ionicons name="checkmark-circle" size={18} color={C.primary} style={{ marginRight: 14 }} />
+                <Ionicons
+                  name="checkmark-circle"
+                  size={18}
+                  color={C.primary}
+                  style={{ marginRight: 14 }}
+                />
               )}
             </View>
 
             {/* Password */}
             <View style={[s.fieldWrap, passFocused && s.fieldWrapFocused]}>
-              <Ionicons name="lock-closed-outline" size={18} color={passFocused ? C.primary : C.muted} style={s.fieldIcon} />
+              <Ionicons
+                name="lock-closed-outline"
+                size={18}
+                color={passFocused ? C.primary : C.muted}
+                style={s.fieldIcon}
+              />
               <TextInput
                 style={s.fieldInput}
-                placeholder="Password"
+                placeholder={t("auth.password")}
                 placeholderTextColor={C.muted}
                 secureTextEntry={!showPassword}
                 value={password}
@@ -152,7 +179,10 @@ export default function LoginScreen() {
                 onFocus={() => setPassFocused(true)}
                 onBlur={() => setPassFocused(false)}
               />
-              <TouchableOpacity onPress={() => setShowPassword(v => !v)} style={s.eyeBtn}>
+              <TouchableOpacity
+                onPress={() => setShowPassword((v) => !v)}
+                style={s.eyeBtn}
+              >
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={18}
@@ -168,38 +198,45 @@ export default function LoginScreen() {
               activeOpacity={0.88}
               disabled={loading}
             >
-              {loading
-                ? <ActivityIndicator color="#fff" />
-                : <>
-                    <Text style={s.loginBtnText}>Sign In</Text>
-                    <View style={s.loginArrow}>
-                      <Ionicons name="arrow-forward" size={16} color={C.primary} />
-                    </View>
-                  </>
-              }
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={s.loginBtnText}>{t("auth.signIn")}</Text>
+                  <View style={s.loginArrow}>
+                    <Ionicons
+                      name="arrow-forward"
+                      size={16}
+                      color={C.primary}
+                    />
+                  </View>
+                </>
+              )}
             </TouchableOpacity>
 
-            {/* Register link */}
-            <TouchableOpacity style={s.registerRow} onPress={() => router.push("/register")}>
-              <Text style={s.registerPrompt}>Don't have an account? </Text>
-              <Text style={s.registerLink}>Create one →</Text>
+            {/* Register */}
+            <TouchableOpacity
+              style={s.registerRow}
+              onPress={() => router.push("/register")}
+            >
+              <Text style={s.registerPrompt}>{t("auth.noAccount")}</Text>
+              <Text style={s.registerLink}>{t("auth.createOne")}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* ── Trust pills ── */}
+          {/* Trust pills */}
           <View style={s.trustRow}>
             {[
-              { icon: "shield-checkmark-outline", text: "Secure" },
-              { icon: "location-outline",         text: "Location" },
-              { icon: "leaf-outline",             text: "For Farmers" },
-            ].map((t, i) => (
+              { icon: "shield-checkmark-outline", key: "Secure" },
+              { icon: "location-outline", key: "Location" },
+              { icon: "leaf-outline", key: "For Farmers" },
+            ].map((item, i) => (
               <View key={i} style={s.trustPill}>
-                <Ionicons name={t.icon as any} size={13} color={C.primary} />
-                <Text style={s.trustText}>{t.text}</Text>
+                <Ionicons name={item.icon as any} size={13} color={C.primary} />
+                <Text style={s.trustText}>{item.key}</Text>
               </View>
             ))}
           </View>
-
         </Animated.View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -208,8 +245,6 @@ export default function LoginScreen() {
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-
-  // Organic background blobs
   blobTop: {
     position: "absolute",
     top: -height * 0.1,
@@ -228,43 +263,48 @@ const s = StyleSheet.create({
     borderRadius: 160,
     backgroundColor: "rgba(30,127,67,0.06)",
   },
-
   scroll: {
     flexGrow: 1,
     justifyContent: "center",
     paddingHorizontal: 28,
     paddingVertical: 60,
   },
-
-  // Brand
   brand: { alignItems: "center", marginBottom: 44 },
   logoRing: {
-    width: 88, height: 88, borderRadius: 44,
-    borderWidth: 2, borderColor: "rgba(30,127,67,0.2)",
-    justifyContent: "center", alignItems: "center",
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 2,
+    borderColor: "rgba(30,127,67,0.2)",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 16,
   },
   logoInner: {
-    width: 72, height: 72, borderRadius: 36,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: C.primary,
-    justifyContent: "center", alignItems: "center",
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 1, shadowRadius: 20, elevation: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 20,
+    elevation: 10,
   },
   logoEmoji: { fontSize: 34 },
   logoName: {
-    fontSize: 30, fontWeight: "900",
-    color: C.ink, letterSpacing: -0.5,
+    fontSize: 30,
+    fontWeight: "900",
+    color: C.ink,
+    letterSpacing: -0.5,
     marginBottom: 5,
   },
   logoSub: { fontSize: 13, color: C.muted, fontWeight: "500" },
-
-  // Form — no card, just floats on the background
   formArea: { marginBottom: 32 },
   formTitle: { fontSize: 26, fontWeight: "800", color: C.ink, marginBottom: 6 },
   formSub: { fontSize: 14, color: C.muted, marginBottom: 28, lineHeight: 20 },
-
-  // Fields — pill shaped, no sharp corners
   fieldWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -276,7 +316,9 @@ const s = StyleSheet.create({
     paddingVertical: Platform.OS === "ios" ? 4 : 0,
     shadowColor: "rgba(0,0,0,0.04)",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1, shadowRadius: 6, elevation: 2,
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 2,
   },
   fieldWrapFocused: {
     borderColor: C.primary,
@@ -285,11 +327,14 @@ const s = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  fieldPrefix: {
-    paddingLeft: 18, paddingRight: 4,
-  },
+  fieldPrefix: { paddingLeft: 18, paddingRight: 4 },
   fieldPrefixText: { fontSize: 15, fontWeight: "700", color: C.primary },
-  fieldSep: { width: 1, height: 22, backgroundColor: C.border, marginHorizontal: 8 },
+  fieldSep: {
+    width: 1,
+    height: 22,
+    backgroundColor: C.border,
+    marginHorizontal: 8,
+  },
   fieldIcon: { marginLeft: 18, marginRight: 4 },
   fieldInput: {
     flex: 1,
@@ -299,8 +344,6 @@ const s = StyleSheet.create({
     paddingRight: 4,
   },
   eyeBtn: { paddingHorizontal: 16, paddingVertical: 10 },
-
-  // Login button — full pill
   loginBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -315,27 +358,41 @@ const s = StyleSheet.create({
     shadowRadius: 18,
     elevation: 8,
   },
-  loginBtnText: { color: C.white, fontSize: 17, fontWeight: "800", flex: 1, textAlign: "center", marginLeft: 38 },
+  loginBtnText: {
+    color: C.white,
+    fontSize: 17,
+    fontWeight: "800",
+    flex: 1,
+    textAlign: "center",
+    marginLeft: 38,
+  },
   loginArrow: {
-    width: 32, height: 32, borderRadius: 16,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: C.white,
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 6,
   },
-
-  // Register
-  registerRow: { flexDirection: "row", justifyContent: "center", marginTop: 20 },
+  registerRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 20,
+  },
   registerPrompt: { fontSize: 14, color: C.muted },
   registerLink: { fontSize: 14, fontWeight: "700", color: C.primary },
-
-  // Trust pills
   trustRow: { flexDirection: "row", justifyContent: "center", gap: 10 },
   trustPill: {
-    flexDirection: "row", alignItems: "center", gap: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
     backgroundColor: C.white,
-    paddingHorizontal: 12, paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 50,
-    borderWidth: 1, borderColor: C.border,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   trustText: { fontSize: 11, fontWeight: "600", color: C.muted },
 });

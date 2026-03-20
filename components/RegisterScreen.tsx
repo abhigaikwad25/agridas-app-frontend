@@ -1,4 +1,4 @@
-// app/register.tsx
+import { useLang } from "@/contexts/LanguageContext";
 import { register } from "@/services/authService";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -27,27 +27,43 @@ const C = {
   white: "#FFFFFF",
 };
 
-const ROLES = [
-  { key: "Consumer",       label: "Farmer / Buyer",    emoji: "🌾", desc: "Rent machines or hire labour" },
-  { key: "MachineOwner",   label: "Machine Owner",     emoji: "🚜", desc: "List & rent out your machines" },
-  { key: "LabourProvider", label: "Labour Provider",   emoji: "👷", desc: "Offer your team for farm work" },
-];
-
 export default function RegisterScreen() {
+  const { t } = useLang();
+
+  const ROLES = [
+    {
+      key: "Consumer",
+      labelKey: "register.roleFarmer",
+      descKey: "register.roleFarmerDesc",
+      emoji: "🌾",
+    },
+    {
+      key: "MachineOwner",
+      labelKey: "register.roleMachine",
+      descKey: "register.roleMachineDesc",
+      emoji: "🚜",
+    },
+    {
+      key: "LabourProvider",
+      labelKey: "register.roleLabour",
+      descKey: "register.roleLabourDesc",
+      emoji: "👷",
+    },
+  ];
+
   const [name, setName] = useState("");
   const [phoneno, setPhoneno] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState("Consumer");
   const [loading, setLoading] = useState(false);
-
   const [nameFocused, setNameFocused] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
 
   const handleRegister = async () => {
     if (!name || !phoneno || !password) {
-      Alert.alert("Missing fields", "Please fill in all fields to continue.");
+      Alert.alert(t("register.missingFields"), t("register.missingFieldsMsg"));
       return;
     }
     try {
@@ -55,14 +71,19 @@ export default function RegisterScreen() {
       const response = await register({ name, phoneno, password, role });
       const data = await response.json();
       if (response.ok) {
-        Alert.alert("Account Created! 🎉", data.message || "Welcome to Agridas!", [
-          { text: "Sign In", onPress: () => router.replace("/") },
-        ]);
+        Alert.alert(
+          t("register.accountCreated"),
+          data.message || t("register.welcomeMsg"),
+          [{ text: t("auth.signIn"), onPress: () => router.replace("/") }],
+        );
       } else {
-        Alert.alert("Registration Failed", data.message || "Please try again.");
+        Alert.alert(
+          t("register.registrationFailed"),
+          data.message || t("register.tryAgain"),
+        );
       }
     } catch {
-      Alert.alert("Error", "Could not reach the server. Try again.");
+      Alert.alert(t("common.error"), t("register.serverError"));
     } finally {
       setLoading(false);
     }
@@ -78,37 +99,37 @@ export default function RegisterScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-
-        {/* ── Blob header ── */}
+        {/* Blob header */}
         <View style={s.blob}>
           <View style={s.blobCircle1} />
           <View style={s.blobCircle2} />
-
           <View style={s.brandRow}>
             <View style={s.leafBadge}>
               <Text style={s.leafEmoji}>🌿</Text>
             </View>
             <Text style={s.brandName}>agridas</Text>
           </View>
-
-          <Text style={s.heroText}>Join the{"\n"}community!</Text>
-          <Text style={s.heroSub}>Create your account and get started in minutes</Text>
+          <Text style={s.heroText}>{t("register.title")}</Text>
+          <Text style={s.heroSub}>{t("register.subtitle")}</Text>
         </View>
 
-        {/* ── Form ── */}
+        {/* Form */}
         <View style={s.form}>
-
           {/* Full Name */}
           <View style={s.fieldWrap}>
-            <Text style={s.fieldLabel}>Full Name</Text>
+            <Text style={s.fieldLabel}>{t("register.fullName")}</Text>
             <View style={[s.fieldRow, nameFocused && s.fieldRowFocused]}>
               <View style={s.iconWrap}>
-                <Ionicons name="person-outline" size={17} color={nameFocused ? C.primary : C.muted} />
+                <Ionicons
+                  name="person-outline"
+                  size={17}
+                  color={nameFocused ? C.primary : C.muted}
+                />
               </View>
               <View style={s.fieldSep} />
               <TextInput
                 style={s.fieldInput}
-                placeholder="e.g. Rajesh Patil"
+                placeholder={t("register.namePlaceholder")}
                 placeholderTextColor={C.muted}
                 value={name}
                 onChangeText={setName}
@@ -120,7 +141,7 @@ export default function RegisterScreen() {
 
           {/* Phone */}
           <View style={s.fieldWrap}>
-            <Text style={s.fieldLabel}>Mobile Number</Text>
+            <Text style={s.fieldLabel}>{t("register.mobileNumber")}</Text>
             <View style={[s.fieldRow, phoneFocused && s.fieldRowFocused]}>
               <View style={s.prefixWrap}>
                 <Text style={s.prefixText}>🇮🇳 +91</Text>
@@ -142,15 +163,19 @@ export default function RegisterScreen() {
 
           {/* Password */}
           <View style={s.fieldWrap}>
-            <Text style={s.fieldLabel}>Password</Text>
+            <Text style={s.fieldLabel}>{t("register.password")}</Text>
             <View style={[s.fieldRow, passFocused && s.fieldRowFocused]}>
               <View style={s.iconWrap}>
-                <Ionicons name="lock-closed-outline" size={17} color={passFocused ? C.primary : C.muted} />
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={17}
+                  color={passFocused ? C.primary : C.muted}
+                />
               </View>
               <View style={s.fieldSep} />
               <TextInput
                 style={[s.fieldInput, { flex: 1 }]}
-                placeholder="Create a password"
+                placeholder={t("register.passwordPlaceholder")}
                 placeholderTextColor={C.muted}
                 secureTextEntry={!showPassword}
                 value={password}
@@ -158,7 +183,10 @@ export default function RegisterScreen() {
                 onFocus={() => setPassFocused(true)}
                 onBlur={() => setPassFocused(false)}
               />
-              <TouchableOpacity style={s.eyeBtn} onPress={() => setShowPassword(v => !v)}>
+              <TouchableOpacity
+                style={s.eyeBtn}
+                onPress={() => setShowPassword((v) => !v)}
+              >
                 <Ionicons
                   name={showPassword ? "eye-off-outline" : "eye-outline"}
                   size={18}
@@ -170,7 +198,7 @@ export default function RegisterScreen() {
 
           {/* Role selector */}
           <View style={s.fieldWrap}>
-            <Text style={s.fieldLabel}>I am a…</Text>
+            <Text style={s.fieldLabel}>{t("register.iAmA")}</Text>
             <View style={s.roleGrid}>
               {ROLES.map((r) => {
                 const active = role === r.key;
@@ -182,8 +210,14 @@ export default function RegisterScreen() {
                     activeOpacity={0.8}
                   >
                     <Text style={s.roleEmoji}>{r.emoji}</Text>
-                    <Text style={[s.roleLabel, active && s.roleLabelActive]}>{r.label}</Text>
-                    <Text style={[s.roleDesc, active && s.roleDescActive]}>{r.desc}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.roleLabel, active && s.roleLabelActive]}>
+                        {t(r.labelKey)}
+                      </Text>
+                      <Text style={[s.roleDesc, active && s.roleDescActive]}>
+                        {t(r.descKey)}
+                      </Text>
+                    </View>
                     {active && (
                       <View style={s.roleCheck}>
                         <Ionicons name="checkmark" size={10} color="#fff" />
@@ -206,7 +240,9 @@ export default function RegisterScreen() {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Text style={s.registerBtnText}>Create Account</Text>
+                <Text style={s.registerBtnText}>
+                  {t("register.createAccount")}
+                </Text>
                 <View style={s.registerArrow}>
                   <Ionicons name="arrow-forward" size={16} color={C.primary} />
                 </View>
@@ -216,28 +252,26 @@ export default function RegisterScreen() {
 
           {/* Login link */}
           <View style={s.loginRow}>
-            <Text style={s.loginLabel}>Already have an account? </Text>
+            <Text style={s.loginLabel}>{t("register.alreadyHaveAccount")}</Text>
             <TouchableOpacity onPress={() => router.replace("/")}>
-              <Text style={s.loginLink}>Sign in →</Text>
+              <Text style={s.loginLink}>{t("register.signIn")}</Text>
             </TouchableOpacity>
           </View>
-
         </View>
 
-        {/* ── Trust strip ── */}
+        {/* Trust strip */}
         <View style={s.trust}>
           {[
-            { icon: "shield-checkmark-outline", text: "Secure" },
-            { icon: "people-outline",           text: "500+ Farmers" },
-            { icon: "star-outline",             text: "4.8 Rated" },
+            { icon: "shield-checkmark-outline", key: "register.secure" },
+            { icon: "people-outline", key: "register.farmers" },
+            { icon: "star-outline", key: "register.rated" },
           ].map((item, i) => (
             <View key={i} style={s.trustItem}>
               <Ionicons name={item.icon as any} size={13} color={C.primary} />
-              <Text style={s.trustText}>{item.text}</Text>
+              <Text style={s.trustText}>{t(item.key)}</Text>
             </View>
           ))}
         </View>
-
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -246,8 +280,6 @@ export default function RegisterScreen() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   scroll: { flexGrow: 1 },
-
-  // Blob
   blob: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 64 : 52,
@@ -258,94 +290,159 @@ const s = StyleSheet.create({
     overflow: "hidden",
   },
   blobCircle1: {
-    position: "absolute", width: 180, height: 180, borderRadius: 90,
-    backgroundColor: "rgba(255,255,255,0.06)", top: -40, right: -40,
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    top: -40,
+    right: -40,
   },
   blobCircle2: {
-    position: "absolute", width: 120, height: 120, borderRadius: 60,
-    backgroundColor: "rgba(255,255,255,0.05)", bottom: 10, right: 60,
+    position: "absolute",
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: "rgba(255,255,255,0.05)",
+    bottom: 10,
+    right: 60,
   },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 24 },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 24,
+  },
   leafBadge: {
-    width: 38, height: 38, borderRadius: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     backgroundColor: "rgba(255,255,255,0.18)",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
   leafEmoji: { fontSize: 20 },
-  brandName: { fontSize: 20, fontWeight: "800", color: "#fff", letterSpacing: 1.5 },
-  heroText: { fontSize: 38, fontWeight: "900", color: "#fff", lineHeight: 44, marginBottom: 8 },
+  brandName: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#fff",
+    letterSpacing: 1.5,
+  },
+  heroText: {
+    fontSize: 38,
+    fontWeight: "900",
+    color: "#fff",
+    lineHeight: 44,
+    marginBottom: 8,
+  },
   heroSub: { fontSize: 14, color: "rgba(255,255,255,0.72)", lineHeight: 20 },
-
-  // Form
   form: { paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 },
-
   fieldWrap: { marginBottom: 20 },
-  fieldLabel: { fontSize: 13, fontWeight: "700", color: C.ink, marginBottom: 8, marginLeft: 2 },
-
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: C.ink,
+    marginBottom: 8,
+    marginLeft: 2,
+  },
   fieldRow: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: C.white, borderRadius: 16,
-    borderWidth: 1.5, borderColor: C.border,
-    overflow: "hidden", height: 54,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.white,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    overflow: "hidden",
+    height: 54,
   },
   fieldRowFocused: {
     borderColor: C.primary,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15, shadowRadius: 8, elevation: 3,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   prefixWrap: { paddingHorizontal: 14, justifyContent: "center" },
   prefixText: { fontSize: 14, fontWeight: "700", color: C.ink },
   iconWrap: { paddingHorizontal: 14, justifyContent: "center" },
   fieldSep: { width: 1, height: 24, backgroundColor: C.border },
-  fieldInput: { flex: 1, paddingHorizontal: 14, fontSize: 15, color: C.ink, height: "100%" },
+  fieldInput: {
+    flex: 1,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: C.ink,
+    height: "100%",
+  },
   eyeBtn: { paddingHorizontal: 14, justifyContent: "center" },
-
-  // Role selector
   roleGrid: { flexDirection: "column", gap: 10 },
   roleCard: {
-    flexDirection: "row", alignItems: "center",
-    backgroundColor: C.white, borderRadius: 16,
-    borderWidth: 1.5, borderColor: C.border,
-    padding: 14, gap: 12, position: "relative",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: C.white,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    padding: 14,
+    gap: 12,
+    position: "relative",
   },
-  roleCardActive: {
-    borderColor: C.primary, backgroundColor: C.faint,
-  },
+  roleCardActive: { borderColor: C.primary, backgroundColor: C.faint },
   roleEmoji: { fontSize: 24 },
   roleLabel: { fontSize: 14, fontWeight: "700", color: C.ink },
   roleLabelActive: { color: C.primary },
-  roleDesc: { fontSize: 12, color: C.muted, flex: 1 },
+  roleDesc: { fontSize: 12, color: C.muted },
   roleDescActive: { color: C.primary, opacity: 0.75 },
   roleCheck: {
-    position: "absolute", top: 10, right: 10,
-    width: 18, height: 18, borderRadius: 9,
+    position: "absolute",
+    top: 10,
+    right: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: C.primary,
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
-
-  // Button
   registerBtn: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 10, backgroundColor: C.primary,
-    height: 56, borderRadius: 18,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.32, shadowRadius: 16, elevation: 8,
-    marginBottom: 24, marginTop: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: C.primary,
+    height: 56,
+    borderRadius: 18,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 16,
+    elevation: 8,
+    marginBottom: 24,
+    marginTop: 4,
   },
   registerBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" },
   registerArrow: {
-    width: 28, height: 28, borderRadius: 14,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "#fff",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
-
-  // Login link
-  loginRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginBottom: 32 },
+  loginRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 32,
+  },
   loginLabel: { fontSize: 14, color: C.muted },
   loginLink: { fontSize: 14, fontWeight: "800", color: C.primary },
-
-  // Trust
-  trust: { flexDirection: "row", justifyContent: "center", gap: 20, paddingBottom: 32 },
+  trust: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 20,
+    paddingBottom: 32,
+  },
   trustItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   trustText: { fontSize: 12, color: C.muted, fontWeight: "500" },
 });

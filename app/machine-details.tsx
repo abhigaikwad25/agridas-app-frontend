@@ -1,4 +1,4 @@
-// app/machine-details.tsx
+import { useLang } from "@/contexts/LanguageContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "@/app/utils/axiosinstance";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -32,7 +32,6 @@ const C = {
   shadow: "rgba(30,127,67,0.10)",
 };
 
-// ─── Auto-scroll Carousel ─────────────────────────────────────────────────────
 function ImageCarousel({ images }: { images: string[] }) {
   const ref = useRef<FlatList>(null);
   const [active, setActive] = useState(0);
@@ -52,7 +51,9 @@ function ImageCarousel({ images }: { images: string[] }) {
 
   useEffect(() => {
     resetTimer();
-    return () => { if (timer.current) clearInterval(timer.current); };
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+    };
   }, [images.length]);
 
   return (
@@ -64,7 +65,11 @@ function ImageCarousel({ images }: { images: string[] }) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyExtractor={(_, i) => String(i)}
-        getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+        getItemLayout={(_, i) => ({
+          length: width,
+          offset: width * i,
+          index: i,
+        })}
         onMomentumScrollEnd={(e) => {
           const idx = Math.round(e.nativeEvent.contentOffset.x / width);
           setActive(idx);
@@ -78,8 +83,6 @@ function ImageCarousel({ images }: { images: string[] }) {
           />
         )}
       />
-
-      {/* Dot indicators */}
       {images.length > 1 && (
         <View style={s.dotRow}>
           {images.map((_, i) => (
@@ -96,20 +99,27 @@ function ImageCarousel({ images }: { images: string[] }) {
           ))}
         </View>
       )}
-
-      {/* Image counter */}
       {images.length > 1 && (
         <View style={s.counter}>
           <Ionicons name="images-outline" size={11} color="#fff" />
-          <Text style={s.counterText}>{active + 1} / {images.length}</Text>
+          <Text style={s.counterText}>
+            {active + 1} / {images.length}
+          </Text>
         </View>
       )}
     </View>
   );
 }
 
-// ─── Info Row ─────────────────────────────────────────────────────────────────
-function InfoRow({ icon, label, value }: { icon: string; label: string; value: string }) {
+function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: string;
+}) {
   return (
     <View style={s.infoRow}>
       <View style={s.infoIcon}>
@@ -123,22 +133,24 @@ function InfoRow({ icon, label, value }: { icon: string; label: string; value: s
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function MachineDetailsScreen() {
+  const { t } = useLang();
   const { machineId } = useLocalSearchParams<{ machineId: string }>();
   const router = useRouter();
   const [machine, setMachine] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [liked, setLiked] = useState(false);
 
-  useEffect(() => { loadMachine(); }, []);
+  useEffect(() => {
+    loadMachine();
+  }, []);
 
   const loadMachine = async () => {
     try {
       const token = await AsyncStorage.getItem("authToken");
       const res = await api.get(
         `https://agridas.onrender.com/machine/details/${machineId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       setMachine(res.data);
     } catch (e) {
@@ -152,7 +164,7 @@ export default function MachineDetailsScreen() {
     return (
       <View style={s.loadingScreen}>
         <ActivityIndicator size="large" color={C.primary} />
-        <Text style={s.loadingText}>Loading details…</Text>
+        <Text style={s.loadingText}>{t("machineDetails.loadingText")}</Text>
       </View>
     );
   }
@@ -165,19 +177,18 @@ export default function MachineDetailsScreen() {
 
   return (
     <View style={s.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      <StatusBar
+        barStyle="dark-content"
+        backgroundColor="transparent"
+        translucent
+      />
 
-      {/* ── Carousel (no dark overlay) ── */}
       <View>
         <ImageCarousel images={images} />
-
-        {/* White pill back button */}
         <TouchableOpacity style={s.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={18} color={C.ink} />
         </TouchableOpacity>
-
-        {/* White pill like button */}
-        <TouchableOpacity style={s.likeBtn} onPress={() => setLiked(v => !v)}>
+        <TouchableOpacity style={s.likeBtn} onPress={() => setLiked((v) => !v)}>
           <Ionicons
             name={liked ? "heart" : "heart-outline"}
             size={18}
@@ -186,7 +197,6 @@ export default function MachineDetailsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Details Sheet ── */}
       <View style={s.sheet}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -202,7 +212,7 @@ export default function MachineDetailsScreen() {
               <Text style={s.ratingNum}>4.9</Text>
             </View>
           </View>
-          <Text style={s.reviews}>Based on 40 reviews</Text>
+          <Text style={s.reviews}>{t("machineDetails.reviews")}</Text>
 
           {/* Location */}
           <View style={s.locRow}>
@@ -215,36 +225,46 @@ export default function MachineDetailsScreen() {
           {/* Price band */}
           <View style={s.priceBand}>
             <View style={s.priceCell}>
-              <Text style={s.priceCellLabel}>Per Acre</Text>
+              <Text style={s.priceCellLabel}>
+                {t("machineDetails.perAcre")}
+              </Text>
               <Text style={s.priceCellValue}>₹{machine.pricePerDay}</Text>
             </View>
             <View style={s.priceSep} />
             <View style={s.priceCell}>
-              <Text style={s.priceCellLabel}>Delivery</Text>
+              <Text style={s.priceCellLabel}>
+                {t("machineDetails.delivery")}
+              </Text>
               <Text style={s.priceCellValue}>
                 ₹{machine.deliveryChargePerKm}
-                <Text style={s.priceUnit}>/km</Text>
+                <Text style={s.priceUnit}>{t("machineDetails.perKm")}</Text>
               </Text>
             </View>
             <View style={s.priceSep} />
             <View style={s.priceCell}>
-              <Text style={s.priceCellLabel}>Coverage</Text>
+              <Text style={s.priceCellLabel}>
+                {t("machineDetails.coverage")}
+              </Text>
               <Text style={s.priceCellValue}>
                 {machine.maxAcreCoverage}
-                <Text style={s.priceUnit}> ac</Text>
+                <Text style={s.priceUnit}>{t("machineDetails.acreUnit")}</Text>
               </Text>
             </View>
           </View>
 
           {/* Specs card */}
           <View style={s.card}>
-            <Text style={s.cardTitle}>Specifications</Text>
+            <Text style={s.cardTitle}>
+              {t("machineDetails.specifications")}
+            </Text>
             <InfoRow
               icon="construct-outline"
-              label="Machine Type"
+              label={t("machineDetails.machineType")}
               value={
                 machine.machineType
-                  ?.map((t: string) => t.charAt(0).toUpperCase() + t.slice(1))
+                  ?.map(
+                    (mt: string) => mt.charAt(0).toUpperCase() + mt.slice(1),
+                  )
                   .join(", ") || "—"
               }
             />
@@ -253,7 +273,9 @@ export default function MachineDetailsScreen() {
                 <Ionicons name="leaf-outline" size={15} color={C.primary} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={s.infoLabel}>Supported Crops</Text>
+                <Text style={s.infoLabel}>
+                  {t("machineDetails.supportedCrops")}
+                </Text>
                 <View style={[s.chips, { marginTop: 6 }]}>
                   {machine.crops?.map((c: string, i: number) => (
                     <View key={i} style={s.chip}>
@@ -268,19 +290,21 @@ export default function MachineDetailsScreen() {
           {/* Description */}
           {machine.description ? (
             <View style={s.card}>
-              <Text style={s.cardTitle}>About this Machine</Text>
+              <Text style={s.cardTitle}>
+                {t("machineDetails.aboutMachine")}
+              </Text>
               <Text style={s.desc}>{machine.description}</Text>
             </View>
           ) : null}
         </ScrollView>
 
-        {/* ── Sticky Bottom Bar ── */}
+        {/* Sticky Bottom Bar */}
         <View style={s.bar}>
           <View>
-            <Text style={s.barLabel}>Starting from</Text>
+            <Text style={s.barLabel}>{t("machineDetails.startingFrom")}</Text>
             <Text style={s.barPrice}>
               ₹{machine.pricePerDay}
-              <Text style={s.barUnit}> / acre</Text>
+              <Text style={s.barUnit}>{t("machineDetails.perAcreUnit")}</Text>
             </Text>
           </View>
           <TouchableOpacity
@@ -288,7 +312,7 @@ export default function MachineDetailsScreen() {
             onPress={() => router.push(`/booking?machineId=${machine._id}`)}
             activeOpacity={0.85}
           >
-            <Text style={s.bookText}>Book Now</Text>
+            <Text style={s.bookText}>{t("machineDetails.bookNow")}</Text>
             <Ionicons name="arrow-forward" size={15} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -297,55 +321,77 @@ export default function MachineDetailsScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.card },
-
   loadingScreen: {
-    flex: 1, backgroundColor: C.bg,
-    justifyContent: "center", alignItems: "center", gap: 12,
+    flex: 1,
+    backgroundColor: C.bg,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
   },
   loadingText: { fontSize: 14, color: C.muted, fontWeight: "600" },
-
-  // Carousel
   dotRow: {
-    position: "absolute", bottom: 14,
-    left: 0, right: 0,
-    flexDirection: "row", justifyContent: "center", gap: 5,
+    position: "absolute",
+    bottom: 14,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 5,
   },
-  dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.55)" },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "rgba(255,255,255,0.55)",
+  },
   dotActive: { width: 20, backgroundColor: "#fff" },
   counter: {
-    position: "absolute", bottom: 14, right: 14,
-    flexDirection: "row", alignItems: "center", gap: 4,
+    position: "absolute",
+    bottom: 14,
+    right: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
     backgroundColor: "rgba(0,0,0,0.35)",
-    paddingHorizontal: 9, paddingVertical: 3, borderRadius: 20,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 20,
   },
   counterText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-
-  // Floating buttons — white pill, no dark overlay on image
   backBtn: {
     position: "absolute",
     top: Platform.OS === "ios" ? 54 : 42,
     left: 14,
-    width: 36, height: 36, borderRadius: 18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#fff",
-    justifyContent: "center", alignItems: "center",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12, shadowRadius: 5, elevation: 5,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 5,
   },
   likeBtn: {
     position: "absolute",
     top: Platform.OS === "ios" ? 54 : 42,
     right: 14,
-    width: 36, height: 36, borderRadius: 18,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: "#fff",
-    justifyContent: "center", alignItems: "center",
-    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12, shadowRadius: 5, elevation: 5,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 5,
+    elevation: 5,
   },
-
-  // Sheet
   sheet: {
     flex: 1,
     backgroundColor: C.bg,
@@ -356,30 +402,47 @@ const s = StyleSheet.create({
     paddingTop: 8,
   },
   handle: {
-    width: 36, height: 4, borderRadius: 2,
+    width: 36,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: C.border,
-    alignSelf: "center", marginBottom: 16,
+    alignSelf: "center",
+    marginBottom: 16,
   },
-
-  // Title
   titleRow: {
-    flexDirection: "row", justifyContent: "space-between",
-    alignItems: "flex-start", marginBottom: 3,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 3,
   },
-  title: { fontSize: 21, fontWeight: "800", color: C.ink, flex: 1, marginRight: 10, lineHeight: 27 },
+  title: {
+    fontSize: 21,
+    fontWeight: "800",
+    color: C.ink,
+    flex: 1,
+    marginRight: 10,
+    lineHeight: 27,
+  },
   ratingChip: {
-    flexDirection: "row", alignItems: "center", gap: 3,
-    backgroundColor: "#FFFBEB", paddingHorizontal: 9, paddingVertical: 4,
-    borderRadius: 20, borderWidth: 1, borderColor: "#FDE68A",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: "#FFFBEB",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
   },
   ratingNum: { fontSize: 12, fontWeight: "800", color: "#92400E" },
   reviews: { fontSize: 12, color: C.muted, marginBottom: 10 },
-
-  // Location
-  locRow: { flexDirection: "row", alignItems: "center", gap: 5, marginBottom: 16 },
+  locRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 16,
+  },
   locText: { fontSize: 13, color: C.muted },
-
-  // Price band
   priceBand: {
     flexDirection: "row",
     backgroundColor: C.primary,
@@ -387,64 +450,111 @@ const s = StyleSheet.create({
     marginBottom: 14,
   },
   priceCell: { flex: 1, paddingVertical: 14, alignItems: "center" },
-  priceCellLabel: { color: "rgba(255,255,255,0.7)", fontSize: 10, fontWeight: "600", marginBottom: 3 },
-  priceCellValue: { color: "#fff", fontSize: 17, fontWeight: "900" },
-  priceUnit: { fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: "600" },
-  priceSep: { width: 1, marginVertical: 10, backgroundColor: "rgba(255,255,255,0.2)" },
-
-  // Card
-  card: {
-    backgroundColor: C.card, borderRadius: 16, padding: 16,
-    marginBottom: 12,
-    shadowColor: C.shadow, shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1, shadowRadius: 6, elevation: 3,
+  priceCellLabel: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 10,
+    fontWeight: "600",
+    marginBottom: 3,
   },
-  cardTitle: { fontSize: 14, fontWeight: "800", color: C.ink, marginBottom: 12 },
-
-  // Info rows
+  priceCellValue: { color: "#fff", fontSize: 17, fontWeight: "900" },
+  priceUnit: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.7)",
+    fontWeight: "600",
+  },
+  priceSep: {
+    width: 1,
+    marginVertical: 10,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  card: {
+    backgroundColor: C.card,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 12,
+  },
   infoRow: {
-    flexDirection: "row", alignItems: "flex-start", gap: 12,
-    paddingVertical: 10, borderBottomWidth: 1, borderColor: C.border,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderColor: C.border,
   },
   infoIcon: {
-    width: 32, height: 32, borderRadius: 9,
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     backgroundColor: C.primaryFaint,
-    justifyContent: "center", alignItems: "center", flexShrink: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    flexShrink: 0,
   },
-  infoLabel: { fontSize: 11, color: C.muted, fontWeight: "600", marginBottom: 1 },
+  infoLabel: {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: "600",
+    marginBottom: 1,
+  },
   infoValue: { fontSize: 14, fontWeight: "700", color: C.ink },
-
-  // Chips
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 7 },
   chip: {
     backgroundColor: C.primaryFaint,
-    paddingHorizontal: 11, paddingVertical: 4,
-    borderRadius: 20, borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 11,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: C.border,
   },
   chipText: { fontSize: 12, fontWeight: "700", color: C.primary },
-
-  // Description
   desc: { fontSize: 14, color: C.muted, lineHeight: 22 },
-
-  // Bottom bar
   bar: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     backgroundColor: C.card,
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: Platform.OS === "ios" ? 30 : 16,
-    borderTopWidth: 1, borderColor: C.border,
+    borderTopWidth: 1,
+    borderColor: C.border,
   },
-  barLabel: { fontSize: 11, color: C.muted, fontWeight: "600", marginBottom: 1 },
+  barLabel: {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: "600",
+    marginBottom: 1,
+  },
   barPrice: { fontSize: 22, fontWeight: "900", color: C.ink },
   barUnit: { fontSize: 13, color: C.muted, fontWeight: "600" },
   bookBtn: {
-    flexDirection: "row", alignItems: "center", gap: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: C.primary,
-    paddingHorizontal: 22, paddingVertical: 13, borderRadius: 13,
-    shadowColor: C.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.28, shadowRadius: 8, elevation: 5,
+    paddingHorizontal: 22,
+    paddingVertical: 13,
+    borderRadius: 13,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 5,
   },
   bookText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 });
