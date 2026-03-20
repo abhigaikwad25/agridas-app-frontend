@@ -42,6 +42,15 @@ export default function LabourTabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="assets"
+        options={{
+          title: "Assets",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="stats-chart-outline" size={size} color={color} />
+          ),
+        }}
+      />
 
       <Tabs.Screen
         name="dashboard"
