@@ -11,14 +11,13 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import api from "../utils/axiosinstance";
+import api from "./utils/axiosinstance";
 
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
   primary: "#6B2737",
   primaryFaint: "#F7EEF0",
-  primaryMid: "#8B3347",
   accent: "#D4873A",
   accentLight: "#FDF3E7",
   green: "#1A7F5A",
@@ -37,11 +36,11 @@ const C = {
 
 type TabKey = "requested" | "ongoing" | "rejected" | "history";
 
-const TAB_STATUS_MAP: Record<TabKey, string | string[]> = {
+const TAB_STATUS_MAP: Record<TabKey, string> = {
   requested: "requested",
   ongoing: "accepted",
   rejected: "rejected",
-  history: ["completed", "cancelled"],
+  history: "history",
 };
 
 const mapBooking = (item: any) => ({
@@ -65,33 +64,50 @@ const mapBooking = (item: any) => ({
   bookingStatus: item.bookingStatus,
 });
 
-function useBookings(tab: TabKey) {
+export default function UserBookingsScreen() {
+  const { t } = useLang();
+  const [tab, setTab] = useState<TabKey>("requested");
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBookings = async () => {
+  const TABS: { key: TabKey; label: string; icon: string }[] = [
+    { key: "requested", label: "Requested", icon: "time-outline" },
+    { key: "ongoing", label: "Ongoing", icon: "reload-circle-outline" },
+    { key: "rejected", label: "Rejected", icon: "close-circle-outline" },
+    { key: "history", label: "History", icon: "archive-outline" },
+  ];
+
+  const activeTab = TABS.find((tb) => tb.key === tab)!;
+
+  const handleTabChange = (newTab: TabKey) => {
+    setData([]);
+    setError(null);
+    setLoading(false);
+    setTab(newTab);
+  };
+
+  const fetchBookings = async (currentTab: TabKey) => {
     setLoading(true);
     setError(null);
-    setData([]);
     try {
-      if (tab === "history") {
+      let result: any[] = [];
+      if (currentTab === "history") {
         const [completedRes, cancelledRes] = await Promise.all([
-          api.get("/booking/received/owner", { params: { status: "completed" ,bookingType:"machine" }}),
-          api.get("/booking/received/owner", { params: { status: "cancelled" ,bookingType:"machine"} }),
+          api.get("/booking/requested/user", { params: { status: "completed" } }),
+          api.get("/booking/requested/user", { params: { status: "cancelled" } }),
         ]);
-        const merged = [
+        result = [
           ...(completedRes.data ?? []),
           ...(cancelledRes.data ?? []),
         ].map(mapBooking);
-        setData(merged);
       } else {
-        const res = await api.get("/booking/received/owner", {
-          params: { status: TAB_STATUS_MAP[tab] ,bookingType:"machine"},
-          
+        const res = await api.get("/booking/requested/user", {
+          params: { status: TAB_STATUS_MAP[currentTab] },
         });
-        setData((res.data ?? []).map(mapBooking));
+        result = (res.data ?? []).map(mapBooking);
       }
+      setData(result);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to fetch bookings");
     } finally {
@@ -100,25 +116,8 @@ function useBookings(tab: TabKey) {
   };
 
   useEffect(() => {
-    fetchBookings();
+    fetchBookings(tab);
   }, [tab]);
-
-  return { data, loading, error, refetch: fetchBookings };
-}
-
-export default function BookingsScreen() {
-  const { t } = useLang();
-  const [tab, setTab] = useState<TabKey>("requested");
-
-  const TABS: { key: TabKey; label: string; icon: string }[] = [
-    { key: "requested", label: t("bookings.requests"), icon: "time-outline" },
-    { key: "ongoing", label: t("bookings.ongoing"), icon: "reload-circle-outline" },
-    { key: "rejected", label: "Rejected", icon: "close-circle-outline" },
-    { key: "history", label: "History", icon: "archive-outline" },
-  ];
-
-  const activeTab = TABS.find((tb) => tb.key === tab)!;
-  const { data, loading, error, refetch } = useBookings(tab);
 
   function MetaRow({ date, endDate, acres }: { date: string; endDate?: string; acres: number }) {
     return (
@@ -129,91 +128,76 @@ export default function BookingsScreen() {
         </View>
         <View style={s.metaItem}>
           <Ionicons name="leaf-outline" size={13} color={C.muted} />
-          <Text style={s.metaText}>{acres} {t("bookings.acres")}</Text>
+          <Text style={s.metaText}>{acres} acres</Text>
         </View>
       </View>
     );
   }
 
-  function RequestCard({ item, onAction }: { item: any; onAction: () => void }) {
-    const [actionLoading, setActionLoading] = useState(false);
+  function RequestedCard({ item, onAction }: { item: any; onAction: () => void }) {
+    const [cancelLoading, setCancelLoading] = useState(false);
 
-const handleAccept = async () => {
-  setActionLoading(true);
-  try {
-    const res = await api.patch(`/booking/${item._id}/accept`, {
-      startDate: item.startDate,  
-      endDate: item.endDate,
-    });
-    console.log(res)
-    onAction();
-  } catch (err: any) {
-    const message =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err?.message ||
-      "Failed to accept booking";
-    Alert.alert("Error", message);
-  } finally {
-    setActionLoading(false);
-  }
-};
-
-    const handleDecline = async () => {
-      Alert.alert("Decline Booking", "Are you sure you want to decline?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Decline",
-          style: "destructive",
-          onPress: async () => {
-            setActionLoading(true);
-            try {
-              await api.patch(`/booking/${item._id}/reject`);
-              onAction();
-            } catch (err: any) {
-              Alert.alert("Error", err?.response?.data?.message || "Failed to decline booking");
-            } finally {
-              setActionLoading(false);
-            }
+    const handleCancel = async () => {
+      Alert.alert(
+        "Cancel Booking",
+        "Are you sure you want to cancel this booking?",
+        [
+          { text: "No, Keep it", style: "cancel" },
+          {
+            text: "Yes, Cancel",
+            style: "destructive",
+            onPress: async () => {
+              setCancelLoading(true);
+              try {
+                await api.patch(`/booking/${item._id}/cancel`);
+                onAction();
+              } catch (err: any) {
+                Alert.alert("Error", err?.response?.data?.message || "Failed to cancel booking");
+              } finally {
+                setCancelLoading(false);
+              }
+            },
           },
-        },
-      ]);
+        ]
+      );
     };
 
     return (
       <View style={s.bookingCard}>
-        <View style={s.cardAccent} />
+        <View style={[s.cardAccent, { backgroundColor: C.amber }]} />
         <View style={s.cardInner}>
           <View style={s.bookingTop}>
-            <View style={s.avatarCircle}>
-              <Text style={s.avatarText}>{item.farmer.charAt(0)}</Text>
+            <View style={[s.avatarCircle, { backgroundColor: C.amberLight }]}>
+              <Text style={[s.avatarText, { color: C.amber }]}>{item.farmer.charAt(0)}</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={s.farmerName}>{item.farmer}</Text>
               <Text style={s.machineName}>{item.machine}</Text>
             </View>
-            <View style={s.amountBadge}>
-              <Text style={s.amountText}>₹{item.amount.toLocaleString("en-IN")}</Text>
+            <View style={[s.statusPill, { backgroundColor: C.amberLight }]}>
+              <Ionicons name="hourglass-outline" size={11} color={C.amber} />
+              <Text style={[s.statusText, { color: C.amber }]}>Pending</Text>
             </View>
           </View>
           <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
           <View style={s.divider} />
-          <View style={s.bookingActions}>
-            <TouchableOpacity style={s.rejectBtn} onPress={handleDecline} disabled={actionLoading}>
-              <Ionicons name="close" size={14} color={C.muted} />
-              <Text style={s.rejectText}>{t("bookings.decline")}</Text>
-            </TouchableOpacity>
+          <View style={s.bottomRow}>
+            <View style={s.amountRow}>
+              <Ionicons name="cash-outline" size={13} color={C.muted} />
+              <Text style={s.amountRowLabel}>Total</Text>
+              <Text style={s.amountRowValue}>₹{item.amount.toLocaleString("en-IN")}</Text>
+            </View>
             <TouchableOpacity
-              style={[s.acceptBtn, actionLoading && { opacity: 0.6 }]}
-              onPress={handleAccept}
-              disabled={actionLoading}
+              style={[s.cancelBtn, cancelLoading && { opacity: 0.6 }]}
+              onPress={handleCancel}
+              disabled={cancelLoading}
             >
-              {actionLoading ? (
-                <ActivityIndicator size="small" color="#fff" />
+              {cancelLoading ? (
+                <ActivityIndicator size="small" color={C.red} />
               ) : (
                 <>
-                  <Ionicons name="checkmark" size={15} color="#fff" />
-                  <Text style={s.acceptText}>{t("bookings.accept")}</Text>
+                  <Ionicons name="close-circle-outline" size={14} color={C.red} />
+                  <Text style={s.cancelText}>Cancel</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -232,7 +216,7 @@ const handleAccept = async () => {
 
     const statusColor = isActive ? C.green : isUpcoming ? C.blue : C.amber;
     const statusBg = isActive ? C.greenLight : isUpcoming ? C.blueLight : C.amberLight;
-    const statusLabel = isActive ? t("bookings.active") : isUpcoming ? "Upcoming" : "Wrapping up";
+    const statusLabel = isActive ? "Active" : isUpcoming ? "Upcoming" : "Wrapping up";
     const statusIcon = isActive ? "radio-button-on" : isUpcoming ? "hourglass-outline" : "flag-outline";
 
     const totalMs = end.getTime() - start.getTime();
@@ -256,7 +240,6 @@ const handleAccept = async () => {
               <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
             </View>
           </View>
-
           <View style={s.progressBlock}>
             <View style={s.progressRow}>
               <Text style={s.progressLabel}>
@@ -268,9 +251,7 @@ const handleAccept = async () => {
               <View style={[s.progressFill, { width: `${progress}%`, backgroundColor: statusColor }]} />
             </View>
           </View>
-
           <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
-
           <View style={s.divider} />
           <View style={s.amountRow}>
             <Ionicons name="cash-outline" size={13} color={C.muted} />
@@ -304,7 +285,7 @@ const handleAccept = async () => {
           <View style={s.divider} />
           <View style={s.amountRow}>
             <Ionicons name="cash-outline" size={13} color={C.muted} />
-            <Text style={s.amountRowLabel}>{t("bookings.amount")}</Text>
+            <Text style={s.amountRowLabel}>Amount</Text>
             <Text style={[s.amountRowValue, { color: C.red }]}>₹{item.amount.toLocaleString("en-IN")}</Text>
           </View>
         </View>
@@ -317,7 +298,7 @@ const handleAccept = async () => {
     const color = isCompleted ? C.green : C.muted;
     const bgColor = isCompleted ? C.greenLight : "#F0EDEB";
     const icon: any = isCompleted ? "checkmark-circle" : "ban-outline";
-    const label = isCompleted ? t("bookings.done") : t("bookings.cancelled");
+    const label = isCompleted ? "Completed" : "Cancelled";
 
     return (
       <View style={[s.bookingCard, { opacity: isCompleted ? 1 : 0.8 }]}>
@@ -340,7 +321,7 @@ const handleAccept = async () => {
           <View style={s.divider} />
           <View style={s.amountRow}>
             <Ionicons name="cash-outline" size={13} color={C.muted} />
-            <Text style={s.amountRowLabel}>{isCompleted ? t("bookings.earned") : t("bookings.amount")}</Text>
+            <Text style={s.amountRowLabel}>{isCompleted ? "Earned" : "Amount"}</Text>
             <Text style={[s.amountRowValue, { color }]}>₹{item.amount.toLocaleString("en-IN")}</Text>
           </View>
         </View>
@@ -363,7 +344,7 @@ const handleAccept = async () => {
           <Text style={s.emptyIcon}>⚠️</Text>
           <Text style={s.emptyTitle}>Something went wrong</Text>
           <Text style={s.emptyText}>{error}</Text>
-          <TouchableOpacity onPress={refetch} style={s.retryBtn}>
+          <TouchableOpacity onPress={() => fetchBookings(tab)} style={s.retryBtn}>
             <Text style={s.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -374,12 +355,12 @@ const handleAccept = async () => {
         <View style={s.empty}>
           <Text style={s.emptyIcon}>📋</Text>
           <Text style={s.emptyTitle}>No {activeTab.label}</Text>
-          <Text style={s.emptyText}>{t("bookings.noBookings")}</Text>
+          <Text style={s.emptyText}>No bookings found here yet.</Text>
         </View>
       );
     }
     return data.map((item) => {
-      if (tab === "requested") return <RequestCard key={item._id} item={item} onAction={refetch} />;
+      if (tab === "requested") return <RequestedCard key={item._id} item={item} onAction={() => fetchBookings(tab)} />;
       if (tab === "ongoing") return <OngoingCard key={item._id} item={item} />;
       if (tab === "rejected") return <RejectedCard key={item._id} item={item} />;
       if (tab === "history") return <HistoryCard key={item._id} item={item} />;
@@ -391,10 +372,10 @@ const handleAccept = async () => {
     <ScrollView style={s.screen} contentContainerStyle={s.container} showsVerticalScrollIndicator={false}>
       <View style={s.header}>
         <View style={s.headerBadge}>
-          <Text style={s.headerBadgeText}>{t("bookings.badge")}</Text>
+          <Text style={s.headerBadgeText}>MY BOOKINGS</Text>
         </View>
-        <Text style={s.headerTitle}>{t("bookings.title")}</Text>
-        <Text style={s.headerSub}>{t("bookings.subtitle")}</Text>
+        <Text style={s.headerTitle}>Your Bookings</Text>
+        <Text style={s.headerSub}>Track and manage your service requests</Text>
       </View>
 
       <View style={s.tabsWrap}>
@@ -405,7 +386,7 @@ const handleAccept = async () => {
               <TouchableOpacity
                 key={tb.key}
                 style={[s.tabBtn, active && s.tabBtnActive]}
-                onPress={() => setTab(tb.key)}
+                onPress={() => handleTabChange(tb.key)}
                 activeOpacity={0.8}
               >
                 <Ionicons name={tb.icon as any} size={15} color={active ? "#fff" : C.muted} />
@@ -469,14 +450,8 @@ const s = StyleSheet.create({
     elevation: 4,
     flexDirection: "row",
   },
-  cardAccent: {
-    width: 4,
-    backgroundColor: C.primary,
-  },
-  cardInner: {
-    flex: 1,
-    padding: 16,
-  },
+  cardAccent: { width: 4, backgroundColor: C.primary },
+  cardInner: { flex: 1, padding: 16 },
   bookingTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
   avatarCircle: {
     width: 44,
@@ -499,12 +474,31 @@ const s = StyleSheet.create({
     paddingVertical: 5,
     borderRadius: 20,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
   statusText: { fontSize: 11, fontWeight: "700" },
   bookingMeta: { flexDirection: "row", gap: 14, marginBottom: 12, flexWrap: "wrap" },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   metaText: { fontSize: 12, color: C.muted, fontWeight: "500" },
   divider: { height: 1, backgroundColor: C.border, marginBottom: 12 },
+  bottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  amountRow: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
+  amountRowLabel: { fontSize: 12, color: C.muted, fontWeight: "600" },
+  amountRowValue: { fontSize: 15, fontWeight: "900", color: C.ink },
+  cancelBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: C.red,
+    backgroundColor: C.redLight,
+  },
+  cancelText: { fontSize: 12, fontWeight: "700", color: C.red },
   bookingActions: { flexDirection: "row", gap: 10 },
   rejectBtn: {
     flex: 1,
@@ -536,13 +530,6 @@ const s = StyleSheet.create({
   progressPct: { fontSize: 12, fontWeight: "800" },
   progressBg: { height: 6, backgroundColor: C.border, borderRadius: 3, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 3 },
-  amountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  amountRowLabel: { flex: 1, fontSize: 12, color: C.muted, fontWeight: "600" },
-  amountRowValue: { fontSize: 15, fontWeight: "900", color: C.ink },
   centerBox: { alignItems: "center", paddingVertical: 48, gap: 12 },
   loadingText: { fontSize: 13, color: C.muted },
   empty: { alignItems: "center", paddingVertical: 48 },

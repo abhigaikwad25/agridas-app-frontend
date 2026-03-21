@@ -1,6 +1,8 @@
 import { useLang } from "@/contexts/LanguageContext";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -9,406 +11,425 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import api from "../utils/axiosinstance";
 
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
   primary: "#6B2737",
   primaryFaint: "#F7EEF0",
+  primaryMid: "#8B3347",
   accent: "#D4873A",
   accentLight: "#FDF3E7",
   green: "#1A7F5A",
   greenLight: "#E8F7F2",
+  red: "#C0392B",
+  redLight: "#FDECEA",
+  amber: "#B45309",
+  amberLight: "#FEF3C7",
+  blue: "#1A56A0",
+  blueLight: "#EBF3FC",
   ink: "#1C1917",
   muted: "#78716C",
   border: "#E8E0D8",
   shadow: "rgba(107,39,55,0.10)",
 };
 
-const SAMPLE = {
-  request: [
-    {
-      id: "1",
-      farmer: "Rajesh Patil",
-      location: "Nashik, Maharashtra",
-      skill: "Harvesting",
-      workers: 4,
-      date: "18 Mar 2026",
-      days: 2,
-      amount: 6400,
-    },
-    {
-      id: "2",
-      farmer: "Suresh Yadav",
-      location: "Pune, Maharashtra",
-      skill: "Sowing",
-      workers: 2,
-      date: "20 Mar 2026",
-      days: 1,
-      amount: 2800,
-    },
-  ],
-  ongoing: [
-    {
-      id: "3",
-      farmer: "Anand Sharma",
-      location: "Aurangabad, MH",
-      skill: "Spraying",
-      workers: 3,
-      date: "14 Mar 2026",
-      days: 3,
-      amount: 7200,
-      progress: 45,
-    },
-  ],
-  completed: [
-    {
-      id: "4",
-      farmer: "Vikas Jadhav",
-      location: "Nagpur, Maharashtra",
-      skill: "Harvesting",
-      workers: 5,
-      date: "10 Mar 2026",
-      days: 2,
-      amount: 8000,
-    },
-    {
-      id: "5",
-      farmer: "Mohan Desai",
-      location: "Solapur, Maharashtra",
-      skill: "Sowing",
-      workers: 3,
-      date: "06 Mar 2026",
-      days: 1,
-      amount: 4200,
-    },
-  ],
+type TabKey = "requested" | "ongoing" | "rejected" | "history";
+
+const TAB_STATUS_MAP: Record<TabKey, string | string[]> = {
+  requested: "requested",
+  ongoing: "accepted",
+  rejected: "rejected",
+  history: ["completed", "cancelled"],
 };
 
-const SKILL_ICONS: Record<string, string> = {
-  Harvesting: "🌾",
-  Sowing: "🌱",
-  Spraying: "💧",
-  Driver: "🚜",
-  "Drone Op.": "🚁",
-};
-
-type TabKey = "request" | "ongoing" | "completed";
+const mapBooking = (item: any) => ({
+  _id: item._id,
+  farmer: item.name,
+  machine: "Labour Provider",
+  acres: item.acre,
+  startDate: item.startDate,
+  endDate: item.endDate,
+  date: new Date(item.startDate).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }),
+  endDateFormatted: new Date(item.endDate).toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }),
+  amount: item.totalCost,
+  bookingStatus: item.bookingStatus,
+});
 
 export default function LabourBookingsScreen() {
   const { t } = useLang();
-  const [tab, setTab] = useState<TabKey>("request");
+  const [tab, setTab] = useState<TabKey>("requested");
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const TABS = [
-    {
-      key: "request",
-      label: t("labourBookings.requests"),
-      icon: "time-outline",
-      count: 2,
-    },
-    {
-      key: "ongoing",
-      label: t("labourBookings.ongoing"),
-      icon: "reload-circle-outline",
-      count: 1,
-    },
-    {
-      key: "completed",
-      label: t("labourBookings.completed"),
-      icon: "checkmark-circle-outline",
-      count: 8,
-    },
+  const TABS: { key: TabKey; label: string; icon: string }[] = [
+    { key: "requested", label: t("bookings.requests"), icon: "time-outline" },
+    { key: "ongoing", label: t("bookings.ongoing"), icon: "reload-circle-outline" },
+    { key: "rejected", label: "Rejected", icon: "close-circle-outline" },
+    { key: "history", label: "History", icon: "archive-outline" },
   ];
 
-  const data = SAMPLE[tab];
+  const activeTab = TABS.find((tb) => tb.key === tab)!;
 
-  function RequestCard({ item }: { item: any }) {
+  const handleTabChange = (newTab: TabKey) => {
+    setData([]);
+    setError(null);
+    setLoading(false);
+    setTab(newTab);
+  };
+
+  const fetchBookings = async (currentTab: TabKey) => {
+    setLoading(true);
+    setError(null);
+    try {
+      let result: any[] = [];
+      if (currentTab === "history") {
+        const [completedRes, cancelledRes] = await Promise.all([
+          api.get("/booking/received/owner", { params: { status: "completed", bookingType: "laborProvider" } }),
+          api.get("/booking/received/owner", { params: { status: "cancelled", bookingType: "laborProvider" } }),
+        ]);
+        result = [
+          ...(completedRes.data ?? []),
+          ...(cancelledRes.data ?? []),
+        ].map(mapBooking);
+      } else {
+        const res = await api.get("/booking/received/owner", {
+          params: { status: TAB_STATUS_MAP[currentTab], bookingType: "laborProvider" },
+        });
+        result = (res.data ?? []).map(mapBooking);
+      }
+      setData(result);
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Failed to fetch bookings");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBookings(tab);
+  }, [tab]);
+
+  function MetaRow({ date, endDate, acres }: { date: string; endDate?: string; acres: number }) {
     return (
-      <View style={s.card}>
-        <View style={s.cardTop}>
-          <View style={s.avatar}>
-            <Text style={s.avatarText}>{item.farmer.charAt(0)}</Text>
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.farmerName}>{item.farmer}</Text>
-            <View style={s.locRow}>
-              <Ionicons name="location-outline" size={12} color={C.muted} />
-              <Text style={s.locText}>{item.location}</Text>
+      <View style={s.bookingMeta}>
+        <View style={s.metaItem}>
+          <Ionicons name="calendar-outline" size={13} color={C.muted} />
+          <Text style={s.metaText}>{date}{endDate ? ` → ${endDate}` : ""}</Text>
+        </View>
+        <View style={s.metaItem}>
+          <Ionicons name="leaf-outline" size={13} color={C.muted} />
+          <Text style={s.metaText}>{acres} {t("bookings.acres")}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  function RequestCard({ item, onAction }: { item: any; onAction: () => void }) {
+    const [actionLoading, setActionLoading] = useState(false);
+
+const handleAccept = async () => {
+  setActionLoading(true);
+  try {
+    const res = await api.patch(`/booking/${item._id}/accept`, {
+      startDate: item.startDate,  
+      endDate: item.endDate,
+    });
+    console.log(res)
+    onAction();
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.response?.data?.error ||
+      err?.message ||
+      "Failed to accept booking";
+    Alert.alert("Error", message);
+  } finally {
+    setActionLoading(false);
+  }
+};
+
+    const handleDecline = async () => {
+      Alert.alert("Decline Booking", "Are you sure you want to decline?", [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Decline",
+          style: "destructive",
+          onPress: async () => {
+            setActionLoading(true);
+            try {
+              await api.patch(`/booking/${item._id}/reject`);
+              onAction();
+            } catch (err: any) {
+              const message =
+                err?.response?.data?.message ||
+                err?.response?.data?.error ||
+                err?.message ||
+                "Failed to decline booking";
+              Alert.alert("Error", message);
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        },
+      ]);
+    };
+
+    return (
+      <View style={s.bookingCard}>
+        <View style={s.cardAccent} />
+        <View style={s.cardInner}>
+          <View style={s.bookingTop}>
+            <View style={s.avatarCircle}>
+              <Text style={s.avatarText}>{item.farmer.charAt(0)}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.farmerName}>{item.farmer}</Text>
+              <Text style={s.machineName}>{item.machine}</Text>
+            </View>
+            <View style={s.amountBadge}>
+              <Text style={s.amountText}>₹{item.amount.toLocaleString("en-IN")}</Text>
             </View>
           </View>
-          <View style={s.amountBadge}>
-            <Text style={s.amountText}>
-              ₹{item.amount.toLocaleString("en-IN")}
-            </Text>
+          <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
+          <View style={s.divider} />
+          <View style={s.bookingActions}>
+            <TouchableOpacity style={s.rejectBtn} onPress={handleDecline} disabled={actionLoading}>
+              <Ionicons name="close" size={14} color={C.muted} />
+              <Text style={s.rejectText}>{t("bookings.decline")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.acceptBtn, actionLoading && { opacity: 0.6 }]}
+              onPress={handleAccept}
+              disabled={actionLoading}
+            >
+              {actionLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={15} color="#fff" />
+                  <Text style={s.acceptText}>{t("bookings.accept")}</Text>
+                </>
+              )}
+            </TouchableOpacity>
           </View>
-        </View>
-        <View style={s.skillRow}>
-          <Text style={s.skillEmoji}>{SKILL_ICONS[item.skill] ?? "👷"}</Text>
-          <Text style={s.skillText}>{item.skill}</Text>
-        </View>
-        <View style={s.metaRow}>
-          <View style={s.metaChip}>
-            <Ionicons name="calendar-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>{item.date}</Text>
-          </View>
-          <View style={s.metaChip}>
-            <Ionicons name="people-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>
-              {item.workers} {t("labourBookings.workers")}
-            </Text>
-          </View>
-          <View style={s.metaChip}>
-            <Ionicons name="sunny-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>
-              {item.days}{" "}
-              {item.days > 1
-                ? t("labourBookings.days")
-                : t("labourBookings.day")}
-            </Text>
-          </View>
-        </View>
-        <View style={s.divider} />
-        <View style={s.actions}>
-          <TouchableOpacity style={s.declineBtn}>
-            <Text style={s.declineText}>{t("labourBookings.decline")}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={s.acceptBtn}>
-            <Ionicons name="checkmark" size={15} color="#fff" />
-            <Text style={s.acceptText}>{t("labourBookings.acceptJob")}</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
   }
 
   function OngoingCard({ item }: { item: any }) {
+    const now = new Date();
+    const start = new Date(item.startDate);
+    const end = new Date(item.endDate);
+    const isActive = now >= start && now <= end;
+    const isUpcoming = now < start;
+
+    const statusColor = isActive ? C.green : isUpcoming ? C.blue : C.amber;
+    const statusBg = isActive ? C.greenLight : isUpcoming ? C.blueLight : C.amberLight;
+    const statusLabel = isActive ? t("bookings.active") : isUpcoming ? "Upcoming" : "Wrapping up";
+    const statusIcon = isActive ? "radio-button-on" : isUpcoming ? "hourglass-outline" : "flag-outline";
+
+    const totalMs = end.getTime() - start.getTime();
+    const elapsedMs = Math.min(Math.max(now.getTime() - start.getTime(), 0), totalMs);
+    const progress = totalMs > 0 ? Math.round((elapsedMs / totalMs) * 100) : 0;
+
     return (
-      <View style={s.card}>
-        <View style={s.cardTop}>
-          <View style={[s.avatar, { backgroundColor: C.greenLight }]}>
-            <Text style={[s.avatarText, { color: C.green }]}>
-              {item.farmer.charAt(0)}
-            </Text>
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.farmerName}>{item.farmer}</Text>
-            <View style={s.locRow}>
-              <Ionicons name="location-outline" size={12} color={C.muted} />
-              <Text style={s.locText}>{item.location}</Text>
+      <View style={s.bookingCard}>
+        <View style={[s.cardAccent, { backgroundColor: statusColor }]} />
+        <View style={s.cardInner}>
+          <View style={s.bookingTop}>
+            <View style={[s.avatarCircle, { backgroundColor: statusBg }]}>
+              <Text style={[s.avatarText, { color: statusColor }]}>{item.farmer.charAt(0)}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.farmerName}>{item.farmer}</Text>
+              <Text style={s.machineName}>{item.machine}</Text>
+            </View>
+            <View style={[s.statusPill, { backgroundColor: statusBg }]}>
+              <Ionicons name={statusIcon as any} size={11} color={statusColor} />
+              <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
             </View>
           </View>
-          <View style={[s.statusPill, { backgroundColor: C.greenLight }]}>
-            <View style={[s.statusDot, { backgroundColor: C.green }]} />
-            <Text style={[s.statusLabel, { color: C.green }]}>
-              {t("labourBookings.active")}
-            </Text>
+          <View style={s.progressBlock}>
+            <View style={s.progressRow}>
+              <Text style={s.progressLabel}>
+                {isActive ? "In progress" : isUpcoming ? "Starts " + item.date : "Completion"}
+              </Text>
+              <Text style={[s.progressPct, { color: statusColor }]}>{progress}%</Text>
+            </View>
+            <View style={s.progressBg}>
+              <View style={[s.progressFill, { width: `${progress}%`, backgroundColor: statusColor }]} />
+            </View>
           </View>
-        </View>
-        <View style={s.skillRow}>
-          <Text style={s.skillEmoji}>{SKILL_ICONS[item.skill] ?? "👷"}</Text>
-          <Text style={s.skillText}>{item.skill}</Text>
-        </View>
-        <View style={s.progressBlock}>
-          <View style={s.progressHeader}>
-            <Text style={s.progressLabel}>
-              {t("labourBookings.workProgress")}
-            </Text>
-            <Text style={[s.progressPct, { color: C.green }]}>
-              {item.progress}%
-            </Text>
-          </View>
-          <View style={s.progressBg}>
-            <View
-              style={[s.progressFill, { width: `${item.progress}%` as any }]}
-            />
-          </View>
-        </View>
-        <View style={s.metaRow}>
-          <View style={s.metaChip}>
-            <Ionicons name="calendar-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>{item.date}</Text>
-          </View>
-          <View style={s.metaChip}>
-            <Ionicons name="people-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>
-              {item.workers} {t("labourBookings.workers")}
-            </Text>
-          </View>
-          <View style={s.metaChip}>
-            <Ionicons name="cash-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>
-              ₹{item.amount.toLocaleString("en-IN")}
-            </Text>
+          <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
+          <View style={s.divider} />
+          <View style={s.amountRow}>
+            <Ionicons name="people-outline" size={13} color={C.muted} />
+            <Text style={s.amountRowLabel}>Labour service amount</Text>
+            <Text style={s.amountRowValue}>₹{item.amount.toLocaleString("en-IN")}</Text>
           </View>
         </View>
       </View>
     );
   }
 
-  function CompletedCard({ item }: { item: any }) {
+  function RejectedCard({ item }: { item: any }) {
     return (
-      <View style={s.card}>
-        <View style={s.cardTop}>
-          <View style={[s.avatar, { backgroundColor: "#F0EDEB" }]}>
-            <Text style={[s.avatarText, { color: C.muted }]}>
-              {item.farmer.charAt(0)}
-            </Text>
-          </View>
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={s.farmerName}>{item.farmer}</Text>
-            <View style={s.locRow}>
-              <Ionicons name="location-outline" size={12} color={C.muted} />
-              <Text style={s.locText}>{item.location}</Text>
+      <View style={[s.bookingCard, { opacity: 0.85 }]}>
+        <View style={[s.cardAccent, { backgroundColor: C.red }]} />
+        <View style={s.cardInner}>
+          <View style={s.bookingTop}>
+            <View style={[s.avatarCircle, { backgroundColor: C.redLight }]}>
+              <Text style={[s.avatarText, { color: C.red }]}>{item.farmer.charAt(0)}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.farmerName}>{item.farmer}</Text>
+              <Text style={s.machineName}>{item.machine}</Text>
+            </View>
+            <View style={[s.statusPill, { backgroundColor: C.redLight }]}>
+              <Ionicons name="close-circle" size={11} color={C.red} />
+              <Text style={[s.statusText, { color: C.red }]}>Rejected</Text>
             </View>
           </View>
-          <View style={[s.statusPill, { backgroundColor: "#F0EDEB" }]}>
-            <Ionicons name="checkmark-circle" size={13} color={C.muted} />
-            <Text style={[s.statusLabel, { color: C.muted }]}>
-              {t("labourBookings.done")}
-            </Text>
+          <MetaRow date={item.date} acres={item.acres} />
+          <View style={s.divider} />
+          <View style={s.amountRow}>
+            <Ionicons name="cash-outline" size={13} color={C.muted} />
+            <Text style={s.amountRowLabel}>{t("bookings.amount")}</Text>
+            <Text style={[s.amountRowValue, { color: C.red }]}>₹{item.amount.toLocaleString("en-IN")}</Text>
           </View>
-        </View>
-        <View style={s.skillRow}>
-          <Text style={s.skillEmoji}>{SKILL_ICONS[item.skill] ?? "👷"}</Text>
-          <Text style={s.skillText}>{item.skill}</Text>
-        </View>
-        <View style={s.metaRow}>
-          <View style={s.metaChip}>
-            <Ionicons name="calendar-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>{item.date}</Text>
-          </View>
-          <View style={s.metaChip}>
-            <Ionicons name="people-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>
-              {item.workers} {t("labourBookings.workers")}
-            </Text>
-          </View>
-          <View style={s.metaChip}>
-            <Ionicons name="sunny-outline" size={12} color={C.muted} />
-            <Text style={s.metaText}>
-              {item.days}{" "}
-              {item.days > 1
-                ? t("labourBookings.days")
-                : t("labourBookings.day")}
-            </Text>
-          </View>
-        </View>
-        <View style={s.divider} />
-        <View style={s.completedFooter}>
-          <Text style={s.earnedLabel}>{t("labourBookings.totalEarned")}</Text>
-          <Text style={s.earnedAmount}>
-            ₹{item.amount.toLocaleString("en-IN")}
-          </Text>
         </View>
       </View>
     );
   }
+
+  function HistoryCard({ item }: { item: any }) {
+    const isCompleted = item.bookingStatus === "completed";
+    const color = isCompleted ? C.green : C.muted;
+    const bgColor = isCompleted ? C.greenLight : "#F0EDEB";
+    const icon: any = isCompleted ? "checkmark-circle" : "ban-outline";
+    const label = isCompleted ? t("bookings.done") : t("bookings.cancelled");
+
+    return (
+      <View style={[s.bookingCard, { opacity: isCompleted ? 1 : 0.8 }]}>
+        <View style={[s.cardAccent, { backgroundColor: color }]} />
+        <View style={s.cardInner}>
+          <View style={s.bookingTop}>
+            <View style={[s.avatarCircle, { backgroundColor: bgColor }]}>
+              <Text style={[s.avatarText, { color }]}>{item.farmer.charAt(0)}</Text>
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={s.farmerName}>{item.farmer}</Text>
+              <Text style={s.machineName}>{item.machine}</Text>
+            </View>
+            <View style={[s.statusPill, { backgroundColor: bgColor }]}>
+              <Ionicons name={icon} size={11} color={color} />
+              <Text style={[s.statusText, { color }]}>{label}</Text>
+            </View>
+          </View>
+          <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
+          <View style={s.divider} />
+          <View style={s.amountRow}>
+            <Ionicons name="cash-outline" size={13} color={C.muted} />
+            <Text style={s.amountRowLabel}>{isCompleted ? t("bookings.earned") : t("bookings.amount")}</Text>
+            <Text style={[s.amountRowValue, { color }]}>₹{item.amount.toLocaleString("en-IN")}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
+  const renderCards = () => {
+    if (loading) {
+      return (
+        <View style={s.centerBox}>
+          <ActivityIndicator color={C.primary} size="large" />
+          <Text style={s.loadingText}>Fetching bookings...</Text>
+        </View>
+      );
+    }
+    if (error) {
+      return (
+        <View style={s.empty}>
+          <Text style={s.emptyIcon}>⚠️</Text>
+          <Text style={s.emptyTitle}>Something went wrong</Text>
+          <Text style={s.emptyText}>{error}</Text>
+          <TouchableOpacity onPress={() => fetchBookings(tab)} style={s.retryBtn}>
+            <Text style={s.retryText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    if (!data.length) {
+      return (
+        <View style={s.empty}>
+          <Text style={s.emptyIcon}>👷</Text>
+          <Text style={s.emptyTitle}>No {activeTab.label}</Text>
+          <Text style={s.emptyText}>{t("bookings.noBookings")}</Text>
+        </View>
+      );
+    }
+    return data.map((item) => {
+      if (tab === "requested") return <RequestCard key={item._id} item={item} onAction={() => fetchBookings(tab)} />;
+      if (tab === "ongoing") return <OngoingCard key={item._id} item={item} />;
+      if (tab === "rejected") return <RejectedCard key={item._id} item={item} />;
+      if (tab === "history") return <HistoryCard key={item._id} item={item} />;
+      return null;
+    });
+  };
 
   return (
-    <ScrollView
-      style={s.screen}
-      contentContainerStyle={s.container}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
+    <ScrollView style={s.screen} contentContainerStyle={s.container} showsVerticalScrollIndicator={false}>
       <View style={s.header}>
         <View style={s.headerBadge}>
-          <Text style={s.headerBadgeText}>{t("labourBookings.badge")}</Text>
+          <Text style={s.headerBadgeText}>LABOUR BOOKINGS</Text>
         </View>
-        <Text style={s.headerTitle}>{t("labourBookings.title")}</Text>
-        <Text style={s.headerSub}>{t("labourBookings.subtitle")}</Text>
-        <View style={s.strip}>
-          {TABS.map((tb) => (
-            <TouchableOpacity
-              key={tb.key}
-              style={s.stripItem}
-              onPress={() => setTab(tb.key as TabKey)}
-            >
-              <Text
-                style={[
-                  s.stripNum,
-                  tab !== tb.key && { color: "rgba(255,255,255,0.55)" },
-                ]}
-              >
-                {tb.count}
-              </Text>
-              <Text style={s.stripLabel}>{tb.label}</Text>
-              {tab === tb.key && <View style={s.stripLine} />}
-            </TouchableOpacity>
-          ))}
-        </View>
+        <Text style={s.headerTitle}>Labour Bookings</Text>
+        <Text style={s.headerSub}>Manage your labour provider requests</Text>
       </View>
 
-      {/* Tabs */}
       <View style={s.tabsWrap}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.tabsRow}
-        >
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.tabsRow}>
           {TABS.map((tb) => {
             const active = tab === tb.key;
             return (
               <TouchableOpacity
                 key={tb.key}
                 style={[s.tabBtn, active && s.tabBtnActive]}
-                onPress={() => setTab(tb.key as TabKey)}
+                onPress={() => handleTabChange(tb.key)}
                 activeOpacity={0.8}
               >
-                <Ionicons
-                  name={tb.icon as any}
-                  size={14}
-                  color={active ? "#fff" : C.muted}
-                />
-                <Text style={[s.tabText, active && s.tabTextActive]}>
-                  {tb.label}
-                </Text>
-                {tb.count > 0 && (
-                  <View style={[s.countBadge, active && s.countBadgeActive]}>
-                    <Text style={[s.countText, active && s.countTextActive]}>
-                      {tb.count}
-                    </Text>
-                  </View>
-                )}
+                <Ionicons name={tb.icon as any} size={15} color={active ? "#fff" : C.muted} />
+                <Text style={[s.tabText, active && s.tabTextActive]}>{tb.label}</Text>
               </TouchableOpacity>
             );
           })}
         </ScrollView>
       </View>
 
-      {/* Cards */}
-      <View style={s.list}>
-        {data.length === 0 ? (
-          <View style={s.empty}>
-            <Text style={s.emptyIcon}>📋</Text>
-            <Text style={s.emptyTitle}>{t("labourBookings.noBookings")}</Text>
-            <Text style={s.emptyText}>
-              {t("labourBookings.noBookingsText")}
-            </Text>
-          </View>
-        ) : (
-          data.map((item) => {
-            if (tab === "request")
-              return <RequestCard key={item.id} item={item} />;
-            if (tab === "ongoing")
-              return <OngoingCard key={item.id} item={item} />;
-            if (tab === "completed")
-              return <CompletedCard key={item.id} item={item} />;
-            return null;
-          })
-        )}
-      </View>
+      <View style={s.cardsList}>{renderCards()}</View>
     </ScrollView>
   );
 }
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
-  container: { paddingBottom: 60 },
+  container: { paddingBottom: 80 },
   header: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 56 : 40,
-    paddingBottom: 24,
+    paddingBottom: 28,
     paddingHorizontal: 20,
   },
   headerBadge: {
@@ -419,47 +440,9 @@ const s = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 10,
   },
-  headerBadgeText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.4,
-  },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 30,
-    fontWeight: "800",
-    lineHeight: 36,
-    marginBottom: 6,
-  },
-  headerSub: { color: "rgba(255,255,255,0.7)", fontSize: 13, marginBottom: 20 },
-  strip: {
-    flexDirection: "row",
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 14,
-  },
-  stripItem: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 12,
-    position: "relative",
-  },
-  stripNum: { fontSize: 20, fontWeight: "900", color: "#fff" },
-  stripLabel: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 10,
-    fontWeight: "600",
-    marginTop: 2,
-  },
-  stripLine: {
-    position: "absolute",
-    bottom: 0,
-    left: 16,
-    right: 16,
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.6)",
-    borderRadius: 1,
-  },
+  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
+  headerTitle: { color: "#fff", fontSize: 30, fontWeight: "800", lineHeight: 36, marginBottom: 6 },
+  headerSub: { color: "rgba(255,255,255,0.7)", fontSize: 13 },
   tabsWrap: { paddingHorizontal: 16, paddingTop: 16, marginBottom: 4 },
   tabsRow: { flexDirection: "row", gap: 8 },
   tabBtn: {
@@ -476,84 +459,60 @@ const s = StyleSheet.create({
   tabBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
   tabText: { fontSize: 13, fontWeight: "600", color: C.muted },
   tabTextActive: { color: "#fff" },
-  countBadge: {
-    backgroundColor: C.primaryFaint,
-    paddingHorizontal: 7,
-    paddingVertical: 1,
-    borderRadius: 20,
-  },
-  countBadgeActive: { backgroundColor: "rgba(255,255,255,0.25)" },
-  countText: { fontSize: 11, fontWeight: "800", color: C.primary },
-  countTextActive: { color: "#fff" },
-  list: { padding: 16, gap: 12 },
-  card: {
+  cardsList: { padding: 16, gap: 14 },
+  bookingCard: {
     backgroundColor: C.card,
     borderRadius: 18,
-    padding: 16,
+    overflow: "hidden",
     shadowColor: C.shadow,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 2,
+    shadowRadius: 10,
+    elevation: 4,
+    flexDirection: "row",
   },
-  cardTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+  cardAccent: { width: 4, backgroundColor: C.primary },
+  cardInner: { flex: 1, padding: 16 },
+  bookingTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
+  avatarCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: C.primaryFaint,
     justifyContent: "center",
     alignItems: "center",
   },
-  avatarText: { fontSize: 16, fontWeight: "800", color: C.primary },
+  avatarText: { fontSize: 17, fontWeight: "800", color: C.primary },
   farmerName: { fontSize: 15, fontWeight: "800", color: C.ink },
-  locRow: { flexDirection: "row", alignItems: "center", gap: 3, marginTop: 2 },
-  locText: { fontSize: 12, color: C.muted },
-  amountBadge: {
-    backgroundColor: C.accentLight,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
+  machineName: { fontSize: 12, color: C.muted, marginTop: 2 },
+  amountBadge: { backgroundColor: C.accentLight, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   amountText: { fontSize: 13, fontWeight: "800", color: C.accent },
   statusPill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: 20,
   },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
-  statusLabel: { fontSize: 12, fontWeight: "700" },
-  skillRow: {
+  statusText: { fontSize: 11, fontWeight: "700" },
+  bookingMeta: { flexDirection: "row", gap: 14, marginBottom: 12, flexWrap: "wrap" },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  metaText: { fontSize: 12, color: C.muted, fontWeight: "500" },
+  divider: { height: 1, backgroundColor: C.border, marginBottom: 12 },
+  bookingActions: { flexDirection: "row", gap: 10 },
+  rejectBtn: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    backgroundColor: C.primaryFaint,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 10,
-    marginBottom: 12,
-    alignSelf: "flex-start",
-  },
-  skillEmoji: { fontSize: 15 },
-  skillText: { fontSize: 13, fontWeight: "700", color: C.primary },
-  metaRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 4 },
-  metaChip: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { fontSize: 12, color: C.muted, fontWeight: "500" },
-  divider: { height: 1, backgroundColor: C.border, marginVertical: 12 },
-  actions: { flexDirection: "row", gap: 10 },
-  declineBtn: {
-    flex: 1,
+    justifyContent: "center",
+    gap: 4,
     paddingVertical: 11,
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: C.border,
-    alignItems: "center",
   },
-  declineText: { fontSize: 13, fontWeight: "700", color: C.muted },
+  rejectText: { fontSize: 13, fontWeight: "700", color: C.muted },
   acceptBtn: {
     flex: 2,
     flexDirection: "row",
@@ -563,42 +522,24 @@ const s = StyleSheet.create({
     paddingVertical: 11,
     borderRadius: 12,
     backgroundColor: C.primary,
-    shadowColor: C.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
+    elevation: 3,
   },
   acceptText: { fontSize: 13, fontWeight: "800", color: "#fff" },
   progressBlock: { marginBottom: 12 },
-  progressHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 6,
-  },
+  progressRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
   progressLabel: { fontSize: 12, color: C.muted, fontWeight: "600" },
   progressPct: { fontSize: 12, fontWeight: "800" },
-  progressBg: {
-    height: 6,
-    backgroundColor: C.greenLight,
-    borderRadius: 3,
-    overflow: "hidden",
-  },
-  progressFill: { height: "100%", backgroundColor: C.green, borderRadius: 3 },
-  completedFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  earnedLabel: { fontSize: 12, color: C.muted, fontWeight: "600" },
-  earnedAmount: { fontSize: 17, fontWeight: "900", color: C.ink },
+  progressBg: { height: 6, backgroundColor: C.border, borderRadius: 3, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 3 },
+  amountRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  amountRowLabel: { flex: 1, fontSize: 12, color: C.muted, fontWeight: "600" },
+  amountRowValue: { fontSize: 15, fontWeight: "900", color: C.ink },
+  centerBox: { alignItems: "center", paddingVertical: 48, gap: 12 },
+  loadingText: { fontSize: 13, color: C.muted },
   empty: { alignItems: "center", paddingVertical: 48 },
   emptyIcon: { fontSize: 44, marginBottom: 12 },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: C.ink,
-    marginBottom: 4,
-  },
+  emptyTitle: { fontSize: 17, fontWeight: "800", color: C.ink, marginBottom: 4 },
   emptyText: { fontSize: 13, color: C.muted, textAlign: "center" },
+  retryBtn: { marginTop: 12, paddingHorizontal: 24, paddingVertical: 10, backgroundColor: C.primary, borderRadius: 10 },
+  retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 });
