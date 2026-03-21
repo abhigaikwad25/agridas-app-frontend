@@ -57,7 +57,7 @@ export default function Profile() {
         <Item
           icon="calendar-outline"
           label={t("profile.bookings")}
-          onPress={() => {}}
+          onPress={() => router.push({ pathname: "/userBookings" })}
         />
         <Item
           icon="create-outline"
