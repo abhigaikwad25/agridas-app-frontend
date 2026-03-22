@@ -133,6 +133,219 @@ function InfoRow({
   );
 }
 
+function AvailabilityCalendar({ machineId }: { machineId: string }) {
+  const { t } = useLang();
+  const [occupiedDates, setOccupiedDates] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  const MONTHS = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+  useEffect(() => {
+    fetchAvailability();
+  }, []);
+
+  const fetchAvailability = async () => {
+    try {
+      const token = await AsyncStorage.getItem("authToken");
+      const res = await api.get(
+        `https://agridas-latest.onrender.com/booking/availabilyStatus/${machineId}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      // Expecting res.data to be an array of date strings like ["2026-03-22", ...]
+      // Adjust the field name below to match your actual API response shape
+      const dates: string[] = res.data?.occupiedDates ?? res.data ?? [];
+      setOccupiedDates(new Set(dates));
+    } catch (e) {
+      console.log("Availability fetch error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+
+  const prevMonth = () => {
+    if (viewMonth === 0) {
+      setViewYear((y) => y - 1);
+      setViewMonth(11);
+    } else setViewMonth((m) => m - 1);
+    setSelectedDate(null);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) {
+      setViewYear((y) => y + 1);
+      setViewMonth(0);
+    } else setViewMonth((m) => m + 1);
+    setSelectedDate(null);
+  };
+
+  const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay();
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  const cells: (number | null)[] = [
+    ...Array(firstDayOfMonth).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  return (
+    <View style={s.card}>
+      <Text style={s.cardTitle}>Availability Calendar</Text>
+
+      {loading ? (
+        <View style={cal.center}>
+          <ActivityIndicator size="small" color={C.primary} />
+          <Text style={cal.loadingText}>Fetching schedule…</Text>
+        </View>
+      ) : (
+        <>
+          {/* Month navigator */}
+          <View style={cal.navRow}>
+            <TouchableOpacity style={cal.navBtn} onPress={prevMonth}>
+              <Ionicons name="chevron-back" size={16} color={C.ink} />
+            </TouchableOpacity>
+            <Text style={cal.monthLabel}>
+              {MONTHS[viewMonth]} {viewYear}
+            </Text>
+            <TouchableOpacity style={cal.navBtn} onPress={nextMonth}>
+              <Ionicons name="chevron-forward" size={16} color={C.ink} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Day-of-week headers */}
+          <View style={cal.headerRow}>
+            {DAY_LABELS.map((d) => (
+              <Text key={d} style={cal.headerCell}>
+                {d}
+              </Text>
+            ))}
+          </View>
+
+          {/* Day grid */}
+          <View style={cal.grid}>
+            {cells.map((day, idx) => {
+              if (day === null) {
+                return <View key={`blank-${idx}`} style={[cal.cell, { backgroundColor: "transparent" }]} />;
+              }
+              const dateStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(day)}`;
+              const isOccupied = occupiedDates.has(dateStr);
+              const isToday = dateStr === todayStr;
+              const isPast = new Date(viewYear, viewMonth, day);
+              new Date(today.getFullYear(), today.getMonth(), today.getDate());
+              const isSelected = selectedDate === dateStr;
+
+              return (
+                <TouchableOpacity
+                  key={dateStr}
+                  style={[
+                    cal.cell,
+                    isOccupied && cal.occupied,
+                    isToday && !isOccupied && cal.todayCell,
+                    isSelected && cal.selected,
+                    isPast && !isToday && cal.past,
+                  ]}
+                  onPress={() =>
+                    !isPast && setSelectedDate(isSelected ? null : dateStr)
+                  }
+                  activeOpacity={isPast ? 1 : 0.7}
+                >
+                  <Text
+                    style={[
+                      cal.cellText,
+                      isOccupied && cal.occupiedText,
+                      isToday && !isOccupied && cal.todayText,
+                      (isPast || day === null) && cal.pastText,
+                    ]}
+                  >
+                    {day}
+                  </Text>
+                  {isOccupied && <View style={cal.dot} />}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Selected date tooltip */}
+          {selectedDate && (
+            <View
+              style={[
+                cal.badge,
+                occupiedDates.has(selectedDate)
+                  ? cal.badgeBooked
+                  : cal.badgeFree,
+              ]}
+            >
+              <Ionicons
+                name={
+                  occupiedDates.has(selectedDate)
+                    ? "close-circle"
+                    : "checkmark-circle"
+                }
+                size={14}
+                color={occupiedDates.has(selectedDate) ? "#C62828" : C.primary}
+              />
+              <Text
+                style={[
+                  cal.badgeText,
+                  occupiedDates.has(selectedDate)
+                    ? { color: "#C62828" }
+                    : { color: C.primary },
+                ]}
+              >
+                {selectedDate} —{" "}
+                {occupiedDates.has(selectedDate)
+                  ? "Booked"
+                  : "Available to book"}
+              </Text>
+            </View>
+          )}
+
+          {/* Legend */}
+          <View style={cal.legend}>
+            <View style={cal.legendItem}>
+              <View
+                style={[
+                  cal.legendDot,
+                  { backgroundColor: "#FDECEA", borderColor: "#E53935" },
+                ]}
+              />
+              <Text style={cal.legendText}>Booked</Text>
+            </View>
+            <View style={cal.legendItem}>
+              <View
+                style={[
+                  cal.legendDot,
+                  { backgroundColor: C.primaryFaint, borderColor: C.primary },
+                ]}
+              />
+              <Text style={cal.legendText}>Available</Text>
+            </View>
+          </View>
+        </>
+      )}
+    </View>
+  );
+}
+
 export default function MachineDetailsScreen() {
   const { t } = useLang();
   const { machineId } = useLocalSearchParams<{ machineId: string }>();
@@ -296,6 +509,8 @@ export default function MachineDetailsScreen() {
               <Text style={s.desc}>{machine.description}</Text>
             </View>
           ) : null}
+
+          <AvailabilityCalendar machineId={machineId} />
         </ScrollView>
 
         {/* Sticky Bottom Bar */}
@@ -320,6 +535,100 @@ export default function MachineDetailsScreen() {
     </View>
   );
 }
+
+// ─── Add these to your StyleSheet.create(s) call ────────────────────────────
+
+const cal = StyleSheet.create({
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    gap: 8,
+  },
+  loadingText: { fontSize: 13, color: C.muted, fontWeight: "600" },
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 14,
+  },
+  navBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  monthLabel: { fontSize: 14, fontWeight: "800", color: C.ink },
+  headerRow: { flexDirection: "row", marginBottom: 6 },
+  headerCell: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 11,
+    fontWeight: "600",
+    color: C.muted,
+  },
+  grid: { flexDirection: "row", flexWrap: "wrap" },
+
+  cell: {
+    width: "14.28%",
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    marginVertical: 1.5,
+    position: "relative",
+    backgroundColor: C.primaryFaint, // ← green tint by default for all cells
+  },
+  cellText: { fontSize: 13, fontWeight: "600", color: C.primary }, // ← green text by default
+  occupied: { backgroundColor: "#FDECEA" },
+  occupiedText: { color: "#C62828" },
+  todayCell: { backgroundColor: "#A8D5B5" }, // ← slightly deeper green for today
+  todayText: { color: C.primary, fontWeight: "900" },
+  selected: { borderWidth: 1.5, borderColor: C.primary },
+  past: { opacity: 0.3 },
+  pastText: { color: C.muted },
+  dot: {
+    position: "absolute",
+    bottom: 3,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#E53935",
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    alignSelf: "center",
+  },
+  badgeBooked: { backgroundColor: "#FDECEA" },
+  badgeFree: { backgroundColor: C.primaryFaint },
+  badgeText: { fontSize: 12, fontWeight: "700" },
+  legend: {
+    flexDirection: "row",
+    gap: 16,
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderColor: C.border,
+  },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 4,
+    borderWidth: 1.5,
+  },
+  legendText: { fontSize: 11, fontWeight: "600", color: C.muted },
+});
 
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.card },
