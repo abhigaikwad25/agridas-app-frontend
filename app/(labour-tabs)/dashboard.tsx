@@ -6,9 +6,9 @@ export default function DashboardScreen() {
 
   return (
     <DashboardForm
-      apiUrlbal="https://agridas.onrender.com/laborProvider/expense"
-      apiUrl="https://agridas.onrender.com/laborProvider/create/expense"
-      apiUrldel="https://agridas.onrender.com/laborProvider/delete/expense"
+      apiUrlbal="https://agridas-latest.onrender.com/laborProvider/expense"
+      apiUrl="https://agridas-latest.onrender.com/laborProvider/create/expense"
+      apiUrldel="https://agridas-latest.onrender.com/laborProvider/delete/expense"
       role="mprovider"
       categories={["loan", "salary", "other"]}
       title={t("labourDashboard.title")}

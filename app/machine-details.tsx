@@ -1,22 +1,22 @@
-import { useLang } from "@/contexts/LanguageContext";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import api from "@/app/utils/axiosinstance";
+import { useLang } from "@/contexts/LanguageContext";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    Platform,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = 320;
@@ -149,7 +149,7 @@ export default function MachineDetailsScreen() {
     try {
       const token = await AsyncStorage.getItem("authToken");
       const res = await api.get(
-        `https://agridas.onrender.com/machine/details/${machineId}`,
+        `https://agridas-latest.onrender.com/machine/details/${machineId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setMachine(res.data);

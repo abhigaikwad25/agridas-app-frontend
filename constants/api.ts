@@ -1,1 +1,1 @@
-export const BASE_URL="https://agridas.onrender.com";
+export const BASE_URL="https://agridas-latest.onrender.com";
