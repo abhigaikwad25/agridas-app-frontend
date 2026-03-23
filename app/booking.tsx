@@ -120,8 +120,7 @@ function AvailabilityPicker({
     try {
       const token = await AsyncStorage.getItem("authToken");
       const res = await api.get(
-        `https://agridas-latest.onrender.com/booking/availabilyStatus/${machineId}`,
-        { headers: { Authorization: `Bearer ${token}` } },
+        `https://agridas-latest.onrender.com/booking/availabilyStatus/${machineId}`
       );
       const dates: string[] = res.data?.occupiedDates ?? res.data ?? [];
       setOccupiedDates(new Set(dates));
@@ -646,6 +645,7 @@ function Field({
   keyboardType = "default",
   editable = true,
   icon,
+  maxLength
 }: {
   label: string;
   value: string;
@@ -654,6 +654,7 @@ function Field({
   keyboardType?: any;
   editable?: boolean;
   icon?: string;
+  maxLength?: number;
 }) {
   return (
     <View style={bs.field}>
@@ -675,6 +676,7 @@ function Field({
           placeholderTextColor={C.muted}
           keyboardType={keyboardType}
           editable={editable}
+          maxLength={maxLength}
         />
         {!editable && (
           <Ionicons
@@ -964,7 +966,29 @@ export default function BookingScreen() {
     // ... rest of submit code ...
 
     try {
-      // ...
+      setSubmitting(true);
+      const startISO = new Date(`${startDate}T09:00:00.000Z`).toISOString();
+      const endISO = new Date(`${endDate}T18:00:00.000Z`).toISOString();
+
+      const payload = {
+        name: name.trim(),
+        address: address.trim(),
+        startDate: startISO,
+        endDate: endISO,
+        acre: acreNum,
+        clientPhoneno: phone.trim(),
+        bookingLocationId: machineId,
+        serviceCost,
+        deliveryCost,
+        totalCost,
+        bookingStatus: "requested",
+        providerUserId: machine?.createdBy || null,
+        ownerPhoneno: machine?.ownerPhoneno ?? machine?.phoneNo ?? "",
+        resourceId: machineId,
+        bookingType: "machine",
+      };
+      await api.post("https://agridas-latest.onrender.com/booking/create", payload);
+
       Alert.alert(
         "Booking Requested! 🎉",
         "Your booking request has been sent. The owner will confirm shortly.",
@@ -1074,6 +1098,7 @@ export default function BookingScreen() {
               onChangeText={setPhone}
               placeholder="10-digit mobile number"
               keyboardType="phone-pad"
+              maxLength={10}
               icon="call-outline"
             />
             <Field
