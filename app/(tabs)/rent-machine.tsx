@@ -52,7 +52,7 @@ export default function RentMachineScreen() {
       image: require("../../assets/images/drone.jpg"),
     },
     {
-      key: "logistics",
+      key: "transport",
       labelKey: "rentMachine.logistics",
       emoji: "🚛",
       image: require("../../assets/images/transport.jpg"),

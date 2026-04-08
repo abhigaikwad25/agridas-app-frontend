@@ -18,7 +18,7 @@ export const removeToken = async () => {
 export const setLocationList = async () => {
   try {
     const token = await getToken();
-    console.log("token for fetching loc list" , token)
+    // console.log("token for fetching loc list" , token)
     const res = await api.get(`${BASE_URL}/location/list`, {
       headers: { Authorization: `Bearer ${token}` },
     });

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "agriconnect-native",
+    "name": "AgriDas",
     "slug": "agriconnect-native",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -38,13 +38,7 @@
       },
 
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.annapradata.agriconnectnative",
-      
-      "permissions": [
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION"
-      ]
+      "predictiveBackGestureEnabled": false
     },
 
     "web": {
@@ -69,8 +63,7 @@
   [
     "expo-location",
     {
-      "locationWhenInUsePermission": "Allow Agridas to access your location to show nearby machines and labor.",
-      "locationWhenInUsePermission": "Allow Agridas to use your location for delivery calculation."
+      "locationWhenInUsePermission": "Allow Agridas to access your location to show nearby machines and labor."
     }
   ]
 ],
