@@ -4,17 +4,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "./utils/axiosinstance";
 const BASE_URL = "https://agridas-latest.onrender.com";
@@ -22,7 +22,7 @@ const BASE_URL = "https://agridas-latest.onrender.com";
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryFaint: "#F7EEF0",
   accent: "#D4873A",
   accentLight: "#FDF3E7",

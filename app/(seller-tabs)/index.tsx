@@ -1,20 +1,20 @@
 import { useLang } from "@/contexts/LanguageContext";
-import {
-  ImageBackground,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import {
+    ImageBackground,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native";
 
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryFaint: "#F7EEF0",
   accent: "#D4873A",
   accentLight: "#FDF3E7",

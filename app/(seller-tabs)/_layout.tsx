@@ -6,7 +6,7 @@ export default function SellerTabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#7A1F3D",
+        tabBarActiveTintColor: "#393E46",
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: {
           backgroundColor: "#FFFFFF",

@@ -1,24 +1,24 @@
 // app/owner-labor-providers.tsx
+import { BASE_URL } from "@/constants/api";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  Image,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    Image,
+    Platform,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import api from "../utils/axiosinstance";
-import { BASE_URL } from "@/constants/api";
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 32;
 
@@ -27,7 +27,7 @@ const DEFAULT_IMAGE = require("../../assets/images/laborproovider.jpg");
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryFaint: "#F7EEF0",
   accent: "#D4873A",
   accentLight: "#FDF3E7",

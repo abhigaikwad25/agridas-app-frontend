@@ -6,7 +6,7 @@ export default function LabourTabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#2E7D32", // green for labour
+        tabBarActiveTintColor: "#393E46", // green for labour
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: {
           backgroundColor: "#FFFFFF",

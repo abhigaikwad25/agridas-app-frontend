@@ -1,6 +1,7 @@
+import { useLang } from "@/contexts/LanguageContext";
 import { login } from "@/services/authService";
 import { saveToken } from "@/services/authStorage";
-import { useLang } from "@/contexts/LanguageContext";
+import { Ionicons } from "@expo/vector-icons";
 import * as Linking from "expo-linking";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -19,7 +20,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 const { height } = Dimensions.get("window");
 
@@ -221,6 +221,15 @@ export default function LoginScreen() {
             >
               <Text style={s.registerPrompt}>{t("auth.noAccount")}</Text>
               <Text style={s.registerLink}>{t("auth.createOne")}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={{ alignItems: "center", marginTop: 10 }}
+              onPress={() => router.push("/ForgotPasswordScreen")}
+            >
+              <Text style={{ fontSize: 14, color: C.muted }}>
+                Forgot password?{" "}
+                <Text style={{ fontWeight: "700", color: C.primary }}>Reset it</Text>
+              </Text>
             </TouchableOpacity>
           </View>
 

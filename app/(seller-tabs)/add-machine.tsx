@@ -1,4 +1,6 @@
+import { BASE_URL } from "@/constants/api";
 import { useLang } from "@/contexts/LanguageContext";
+import { getLocationList, getToken } from "@/services/authStorage";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useState } from "react";
@@ -16,8 +18,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { BASE_URL } from "@/constants/api";
-import { getLocationList, getToken } from "@/services/authStorage";
 
 const API_URL = `${BASE_URL}/machine/register`;
 
@@ -47,7 +47,7 @@ const CROP_ICONS: Record<string, string> = {
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryLight: "#9B3E52",
   primaryFaint: "#F7EEF0",
   accent: "#D4873A",

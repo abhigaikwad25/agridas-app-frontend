@@ -2,24 +2,24 @@ import { getToken } from "@/services/authStorage";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-  ScrollView,
-  Platform,
-  KeyboardAvoidingView,
+    Alert,
+    FlatList,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryLight: "#9B3E52",
   primaryFaint: "#F7EEF0",
   accent: "#D4873A",

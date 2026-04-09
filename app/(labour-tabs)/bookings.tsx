@@ -1,22 +1,22 @@
 import { useLang } from "@/contexts/LanguageContext";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 import api from "../utils/axiosinstance";
 
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryFaint: "#F7EEF0",
   primaryMid: "#8B3347",
   accent: "#D4873A",
@@ -25,8 +25,8 @@ const C = {
   greenLight: "#E8F7F2",
   red: "#C0392B",
   redLight: "#FDECEA",
-  amber: "#B45309",
-  amberLight: "#FEF3C7",
+  amber: "#393E46",
+  amberLight: "#393E46",
   blue: "#1A56A0",
   blueLight: "#EBF3FC",
   ink: "#1C1917",

@@ -44,7 +44,7 @@ const SKILL_LABELS: Record<string, string> = {
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryFaint: "#F7EEF0",
   accent: "#D4873A",
   accentLight: "#FDF3E7",

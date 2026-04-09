@@ -1,18 +1,18 @@
-import { useLang } from "@/contexts/LanguageContext";
 import { BASE_URL } from "@/constants/api";
+import { useLang } from "@/contexts/LanguageContext";
 import { getLocationList, getToken } from "@/services/authStorage";
 import { useEffect, useState } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const CROPS = ["Rice", "Cotton", "Wheat", "Soybean", "Sugarcane"];
@@ -43,7 +43,7 @@ const SKILL_ICONS: Record<string, string> = {
 const C = {
   bg: "#F9F5F0",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primaryLight: "#9B3E52",
   primaryFaint: "#F7EEF0",
   accent: "#D4873A",

@@ -2,18 +2,18 @@ import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import api from "../utils/axiosinstance";
 
@@ -21,7 +21,7 @@ const C = {
   bg: "#F7F3EE",
   bgSoft: "#FBF8F4",
   card: "#FFFFFF",
-  primary: "#6B2737",
+  primary: "#393E46",
   primary2: "#8C3A4E",
   primarySoft: "#F8EEF1",
   accent: "#C9863A",
