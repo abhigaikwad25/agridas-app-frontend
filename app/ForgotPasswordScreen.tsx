@@ -176,7 +176,6 @@ export default function ForgotPasswordScreen() {
       });
 
       const data = response.data; // Already parsed
-      console.log(data)
       if (data.success) {
         Alert.alert(
           "✅ Password Updated",
