@@ -5,9 +5,9 @@ export default function DashboardScreen() {
       apiUrlbal="https://agridas-latest.onrender.com/user/expense"
       apiUrl="https://agridas-latest.onrender.com/user/create/expense"
       apiUrldel="https://agridas-latest.onrender.com/user/delete/expense"
-      role="mprovider"
+      role="farmer"
       categories={["fertilizer", "seeds","irrigation", "other"]}
-      title="Labor Provider Dashboard"
+      title="Farmer Dashboard"
     />
   );
 }

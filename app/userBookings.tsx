@@ -63,9 +63,7 @@ const mapBooking = (item: any) => ({
   amount: item.totalCost,
   bookingStatus: item.bookingStatus,
   startOtp: item.startOtp,
-  endOtp: item.endOtp,
-  startOtpVerified: item.startOtpVerified,
-  endOtpVerified: item.endOtpVerified,
+  endOtp: item.endOtp
 });
 
 export default function UserBookingsScreen() {
@@ -124,7 +122,7 @@ export default function UserBookingsScreen() {
         });
         result = (res.data ?? []).map(mapBooking);
       }
-
+      console.log(result)
       setData(result);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to fetch bookings");
@@ -503,14 +501,16 @@ function OngoingCard({ item }: { item: any }) {
 }
 
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg },
+  screen: { flex: 1, backgroundColor: "#f4f6f4" },
   container: { paddingBottom: 80 },
 
   header: {
-    backgroundColor: C.primary,
+    backgroundColor: "#1e7f43",
     paddingTop: Platform.OS === "ios" ? 56 : 40,
     paddingBottom: 28,
     paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
 
   headerBadge: {
@@ -552,30 +552,34 @@ const s = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 14,
     borderRadius: 50,
-    backgroundColor: C.card,
+    backgroundColor: "#ffffff",
     borderWidth: 1.5,
-    borderColor: C.border,
+    borderColor: "#e0e5e0",
   },
 
-  tabBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
-  tabText: { fontSize: 13, fontWeight: "600", color: C.muted },
+  tabBtnActive: {
+    backgroundColor: "#1e7f43",
+    borderColor: "#1e7f43",
+  },
+
+  tabText: { fontSize: 13, fontWeight: "600", color: "#6b7280" },
   tabTextActive: { color: "#fff" },
 
   cardsList: { padding: 16, gap: 14 },
 
   bookingCard: {
-    backgroundColor: C.card,
+    backgroundColor: "#ffffff",
     borderRadius: 18,
     overflow: "hidden",
-    shadowColor: C.shadow,
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 1,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 4,
     flexDirection: "row",
   },
 
-  cardAccent: { width: 4, backgroundColor: C.primary },
+  cardAccent: { width: 4, backgroundColor: "#1e7f43" },
   cardInner: { flex: 1, padding: 16 },
 
   bookingTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
@@ -584,23 +588,23 @@ const s = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: C.primaryFaint,
+    backgroundColor: "#e6f2ea",
     justifyContent: "center",
     alignItems: "center",
   },
 
-  avatarText: { fontSize: 17, fontWeight: "800", color: C.primary },
-  farmerName: { fontSize: 15, fontWeight: "800", color: C.ink },
-  machineName: { fontSize: 12, color: C.muted, marginTop: 2 },
+  avatarText: { fontSize: 17, fontWeight: "800", color: "#1e7f43" },
+  farmerName: { fontSize: 15, fontWeight: "800", color: "#1f2937" },
+  machineName: { fontSize: 12, color: "#6b7280", marginTop: 2 },
 
   amountBadge: {
-    backgroundColor: C.accentLight,
+    backgroundColor: "#e6f2ea",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 20,
   },
 
-  amountText: { fontSize: 13, fontWeight: "800", color: C.accent },
+  amountText: { fontSize: 13, fontWeight: "800", color: "#1e7f43" },
 
   statusPill: {
     flexDirection: "row",
@@ -612,10 +616,18 @@ const s = StyleSheet.create({
   },
 
   statusText: { fontSize: 11, fontWeight: "700" },
-  bookingMeta: { flexDirection: "row", gap: 14, marginBottom: 12, flexWrap: "wrap" },
+
+  bookingMeta: {
+    flexDirection: "row",
+    gap: 14,
+    marginBottom: 12,
+    flexWrap: "wrap",
+  },
+
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
-  metaText: { fontSize: 12, color: C.muted, fontWeight: "500" },
-  divider: { height: 1, backgroundColor: C.border, marginBottom: 12 },
+  metaText: { fontSize: 12, color: "#6b7280", fontWeight: "500" },
+
+  divider: { height: 1, backgroundColor: "#e0e5e0", marginBottom: 12 },
 
   bottomRow: {
     flexDirection: "row",
@@ -625,8 +637,18 @@ const s = StyleSheet.create({
 
   amountRow: { flexDirection: "row", alignItems: "center", gap: 6, flex: 1 },
   amountRowSingle: { flexDirection: "row", alignItems: "center", gap: 6 },
-  amountRowLabel: { fontSize: 12, color: C.muted, fontWeight: "600" },
-  amountRowValue: { fontSize: 15, fontWeight: "900", color: C.ink },
+
+  amountRowLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+
+  amountRowValue: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#1f2937",
+  },
 
   cancelBtn: {
     flexDirection: "row",
@@ -636,18 +658,40 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: C.red,
-    backgroundColor: C.redLight,
+    borderColor: "#dc2626",
+    backgroundColor: "#fdecec",
   },
 
-  cancelText: { fontSize: 12, fontWeight: "700", color: C.red },
+  cancelText: { fontSize: 12, fontWeight: "700", color: "#dc2626" },
 
   progressBlock: { marginBottom: 12 },
-  progressRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  progressLabel: { fontSize: 12, color: C.muted, fontWeight: "600" },
+
+  progressRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+
+  progressLabel: {
+    fontSize: 12,
+    color: "#6b7280",
+    fontWeight: "600",
+  },
+
   progressPct: { fontSize: 12, fontWeight: "800" },
-  progressBg: { height: 6, backgroundColor: C.border, borderRadius: 3, overflow: "hidden" },
-  progressFill: { height: "100%", borderRadius: 3 },
+
+  progressBg: {
+    height: 6,
+    backgroundColor: "#e0e5e0",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+
+  progressFill: {
+    height: "100%",
+    borderRadius: 3,
+    backgroundColor: "#1e7f43",
+  },
 
   otpBlock: {
     marginBottom: 14,
@@ -655,10 +699,10 @@ const s = StyleSheet.create({
   },
 
   otpSection: {
-    backgroundColor: C.bg,
+    backgroundColor: "#f4f6f4",
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: "#e0e5e0",
     padding: 12,
   },
 
@@ -672,29 +716,40 @@ const s = StyleSheet.create({
   otpSectionTitle: {
     fontSize: 13,
     fontWeight: "800",
-    color: C.ink,
+    color: "#1f2937",
   },
 
   otpSectionSub: {
     fontSize: 12,
-    color: C.muted,
+    color: "#6b7280",
     lineHeight: 18,
   },
 
   centerBox: { alignItems: "center", paddingVertical: 48, gap: 12 },
-  loadingText: { fontSize: 13, color: C.muted },
+  loadingText: { fontSize: 13, color: "#6b7280" },
 
   empty: { alignItems: "center", paddingVertical: 48 },
   emptyIcon: { fontSize: 44, marginBottom: 12 },
-  emptyTitle: { fontSize: 17, fontWeight: "800", color: C.ink, marginBottom: 4 },
-  emptyText: { fontSize: 13, color: C.muted, textAlign: "center" },
+
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#1f2937",
+    marginBottom: 4,
+  },
+
+  emptyText: {
+    fontSize: 13,
+    color: "#6b7280",
+    textAlign: "center",
+  },
 
   retryBtn: {
     marginTop: 12,
     paddingHorizontal: 24,
     paddingVertical: 10,
-    backgroundColor: C.primary,
-    borderRadius: 10,
+    backgroundColor: "#1e7f43",
+    borderRadius: 12,
   },
 
   retryText: { color: "#fff", fontWeight: "700", fontSize: 13 },

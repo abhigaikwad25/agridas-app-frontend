@@ -34,8 +34,7 @@ export default function Profile() {
           source={require("../../assets/images/farmer.jpg")}
           style={styles.avatar}
         />
-        <Text style={styles.name}>Akshat Tated</Text>
-        <Text style={styles.sub}>{t("profile.agriUser")}</Text>
+        <Text style={styles.name}>{t("profile.agriUser")}</Text>
       </View>
 
       <View style={styles.card}>
