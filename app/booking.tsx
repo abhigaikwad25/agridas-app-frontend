@@ -42,7 +42,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 
@@ -346,208 +346,89 @@ function MapPickerModal({
   onConfirm: (coords: LatLng, label: string) => void;
   onClose: () => void;
 }) {
-  const DEFAULT = { latitude: 19.9975, longitude: 73.7898 };
-
+  const DEFAULT = { latitude: 19.9975, longitude: 73.7898 }; // Maharashtra
   const [pin, setPin] = useState<LatLng>(DEFAULT);
   const [label, setLabel] = useState("");
   const [resolving, setResolving] = useState(false);
-
   const [searchText, setSearchText] = useState("");
   const [searching, setSearching] = useState(false);
-
   const [initialized, setInitialized] = useState(false);
-  const [lockPin, setLockPin] = useState(false);
-
   const mapRef = useRef<MapView>(null);
 
-  // ───────────────── INIT LOCATION ─────────────────
+  // On first open, try to center map at user's current GPS
   useEffect(() => {
     if (!visible || initialized) return;
-
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-
+        const { status } = await Location.getForegroundPermissionsAsync();
         if (status === "granted") {
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Low,
           });
-
-          const coords = {
+          const coords: LatLng = {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
           };
-
           setPin(coords);
-
+          // Small delay so map is fully mounted
           setTimeout(() => {
-            mapRef.current?.animateToRegion?.(
-              {
-                ...coords,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
-              },
-              500
+            mapRef.current?.animateToRegion(
+              { ...coords, latitudeDelta: 0.05, longitudeDelta: 0.05 },
+              600,
             );
-          }, 300);
+          }, 400);
         }
-      } catch (e) {
-        console.log("GPS error", e);
-      }
-
+      } catch { /* fall back to default */ }
       setInitialized(true);
     })();
   }, [visible]);
 
-  // ───────────────── UBER STYLE MAP MOVE ─────────────────
-  const onRegionChangeComplete = (region: any) => {
-    if (lockPin) return;
-
-    setPin({
-      latitude: region.latitude,
-      longitude: region.longitude,
-    });
-  };
-
-  // ───────────────── DEBOUNCED REVERSE GEOCODE ─────────────────
+  // Reverse-geocode whenever pin changes
   useEffect(() => {
     if (!visible) return;
-
-    const timeout = setTimeout(() => {
-      resolveAddress(pin);
-    }, 600);
-
-    return () => clearTimeout(timeout);
-  }, [pin]);
+    resolveAddress(pin);
+  }, [pin.latitude, pin.longitude]);
 
   const resolveAddress = async (coords: LatLng) => {
     setResolving(true);
-
     try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coords.latitude}&lon=${coords.longitude}`,
-        {
-          headers: {
-            "User-Agent": "agridas-app",
-            Accept: "application/json",
-          },
-        }
-      );
-
-      const data = await res.json();
-      setLabel(data?.display_name || "Selected location");
-    } catch (e) {
+      const results = await Location.reverseGeocodeAsync(coords);
+      if (results.length > 0) {
+        const r = results[0];
+        const parts = [r.name, r.city ?? r.subregion, r.region]
+          .filter(Boolean)
+          .join(", ");
+        setLabel(parts || "Selected location");
+      } else {
+        setLabel("Selected location");
+      }
+    } catch {
       setLabel("Selected location");
     } finally {
       setResolving(false);
     }
   };
 
-  // ───────────────── SMART NORMALIZER ─────────────────
-  const normalize = (text: string) =>
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-zA-Z0-9\u0900-\u097F\s]/g, "")
-      .replace(/\s+/g, " ");
-
-  // ───────────────── SMART SEARCH ─────────────────
+  // Geocode typed address text → move pin
   const handleSearch = async () => {
-    const qRaw = searchText.trim();
-
-    if (!qRaw || qRaw.length < 2) {
-      Alert.alert("Enter location", "Type village / city name");
-      return;
-    }
-
-    if (searching) return;
-
+    const q = searchText.trim();
+    if (!q) return;
     setSearching(true);
-    setLockPin(true);
-
     try {
-      const q = normalize(qRaw);
-
-      const queries = [
-        `${q}, Maharashtra, India`,
-        `${q}, India`,
-        q,
-      ];
-
-      let data: any[] = [];
-
-      for (const query of queries) {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
-            query
-          )}&limit=5&addressdetails=1&countrycodes=in`,
-          {
-            headers: {
-              "User-Agent": "agridas-app",
-              Accept: "application/json",
-            },
-          }
+      const results = await Location.geocodeAsync(q);
+      if (results.length > 0) {
+        const { latitude, longitude } = results[0];
+        const coords: LatLng = { latitude, longitude };
+        setPin(coords);
+        mapRef.current?.animateToRegion(
+          { latitude, longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 },
+          800,
         );
-
-        data = await res.json();
-
-        if (data && data.length > 0) break;
+      } else {
+        Alert.alert("Not Found", "Could not find that location. Try a more specific address.");
       }
-
-      if (!data || data.length === 0) {
-        Alert.alert(
-          "Not Found",
-          "Try village + district name or move map manually"
-        );
-        setLockPin(false);
-        return;
-      }
-
-      // ───────────────── SMART SCORING ─────────────────
-      const score = (item: any) => {
-        let s = 0;
-
-        const name = (item.display_name || "").toLowerCase();
-
-        if (item.type === "village") s += 5;
-        if (item.type === "hamlet") s += 4;
-        if (item.type === "town") s += 3;
-
-        if (name.includes("maharashtra")) s += 3;
-
-        // Hindi detection boost (basic)
-        if (/[अ-ह]/.test(item.display_name || "")) s += 2;
-
-        s += parseFloat(item.importance || 0) * 2;
-
-        return s;
-      };
-
-      const best = data.reduce((a: any, b: any) =>
-        score(b) > score(a) ? b : a
-      );
-
-      const coords = {
-        latitude: parseFloat(best.lat),
-        longitude: parseFloat(best.lon),
-      };
-
-      setPin(coords);
-      setLabel(best.display_name || "Selected location");
-
-      mapRef.current?.animateToRegion?.(
-        {
-          ...coords,
-          latitudeDelta: 0.02,
-          longitudeDelta: 0.02,
-        },
-        700
-      );
-
-      setTimeout(() => setLockPin(false), 900);
-    } catch (e) {
-      Alert.alert("Error", "Search failed");
-      setLockPin(false);
+    } catch {
+      Alert.alert("Search Error", "Location search failed. Please try again.");
     } finally {
       setSearching(false);
     }
@@ -556,113 +437,120 @@ function MapPickerModal({
   const canConfirm = !!label && !resolving;
 
   return (
-    <Modal visible={visible} animationType="slide">
-      <View style={{ flex: 1 }}>
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={mp.container}>
+        <StatusBar barStyle="dark-content" />
 
-        {/* HEADER */}
-        <View style={{ flexDirection: "row", padding: 12, alignItems: "center" }}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="close" size={22} />
+        {/* Header */}
+        <View style={mp.header}>
+          <TouchableOpacity style={mp.closeBtn} onPress={onClose}>
+            <Ionicons name="close" size={20} color={C.ink} />
           </TouchableOpacity>
-
-          <Text style={{ flex: 1, textAlign: "center", fontWeight: "700" }}>
-            Pick Location
-          </Text>
-
-          <View style={{ width: 22 }} />
+          <Text style={mp.headerTitle}>Set Delivery Location</Text>
+          <View style={{ width: 36 }} />
         </View>
 
-        {/* SEARCH */}
-        <View style={{ flexDirection: "row", padding: 10 }}>
-          <TextInput
-            style={{
-              flex: 1,
-              backgroundColor: "#eee",
-              padding: 10,
-              borderRadius: 10,
-            }}
-            placeholder="Search village, city..."
-            value={searchText}
-            onChangeText={setSearchText}
-            onSubmitEditing={handleSearch}
-          />
-
-          <TouchableOpacity
-            onPress={handleSearch}
-            style={{
-              marginLeft: 10,
-              backgroundColor: "#1E7F43",
-              padding: 10,
-              borderRadius: 10,
-              justifyContent: "center",
-              alignItems: "center",
-              minWidth: 50,
-            }}
-          >
-            {searching ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={{ color: "#fff", fontWeight: "700" }}>Go</Text>
+        {/* Search bar */}
+        <View style={mp.searchRow}>
+          <View style={mp.searchInputWrap}>
+            <Ionicons
+              name="search-outline"
+              size={16}
+              color={C.muted}
+              style={{ marginLeft: 10 }}
+            />
+            <TextInput
+              style={mp.searchInput}
+              value={searchText}
+              onChangeText={setSearchText}
+              placeholder="Search village, city, address…"
+              placeholderTextColor={C.muted}
+              returnKeyType="search"
+              onSubmitEditing={handleSearch}
+              autoCorrect={false}
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchText("")} style={{ marginRight: 6 }}>
+                <Ionicons name="close-circle" size={16} color={C.muted} />
+              </TouchableOpacity>
             )}
+          </View>
+          <TouchableOpacity
+            style={[mp.searchBtn, searching && { opacity: 0.55 }]}
+            onPress={handleSearch}
+            disabled={searching}
+            activeOpacity={0.8}
+          >
+            {searching
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Text style={mp.searchBtnText}>Go</Text>
+            }
           </TouchableOpacity>
         </View>
 
-        {/* MAP */}
+        {/* Hint */}
+        <View style={mp.hint}>
+          <Ionicons name="information-circle-outline" size={14} color={C.primary} />
+          <Text style={mp.hintText}>
+            Search or tap the map · Drag pin to fine-tune
+          </Text>
+        </View>
+
+        {/* Map */}
         <MapView
           ref={mapRef}
-          style={{ flex: 1 }}
-          initialRegion={{
-            ...DEFAULT,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          }}
-          onRegionChangeComplete={onRegionChangeComplete}
-        />
-
-        {/* CENTER PIN */}
-        <View
-          style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            marginLeft: -18,
-            marginTop: -36,
-          }}
+          style={mp.map}
+          provider={PROVIDER_GOOGLE}
+          initialRegion={{ ...DEFAULT, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
+          onPress={(e) => setPin(e.nativeEvent.coordinate)}
         >
-          <Ionicons name="location-sharp" size={36} color="red" />
-        </View>
+          <Marker
+            coordinate={pin}
+            pinColor={C.primary}
+            draggable
+            onDragEnd={(e) => setPin(e.nativeEvent.coordinate)}
+          />
+        </MapView>
 
-        {/* BOTTOM PANEL */}
-        <View style={{ padding: 12, backgroundColor: "#fff" }}>
-          <Text style={{ fontWeight: "700" }}>
-            {resolving ? "Fetching address..." : label}
-          </Text>
-
-          <Text style={{ color: "#666", marginTop: 2 }}>
-            {pin.latitude.toFixed(5)}, {pin.longitude.toFixed(5)}
-          </Text>
-
-          <TouchableOpacity
-            disabled={!canConfirm}
-            onPress={() => onConfirm(pin, label)}
-            style={{
-              marginTop: 10,
-              backgroundColor: canConfirm ? "#1E7F43" : "#aaa",
-              padding: 12,
-              borderRadius: 10,
-              alignItems: "center",
-            }}
-          >
-            <Text style={{ color: "#fff", fontWeight: "700" }}>
-              Confirm Location
+        {/* Address bar */}
+        <View style={mp.addressBar}>
+          <View style={mp.addressIcon}>
+            <Ionicons name="location" size={16} color={C.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={mp.addressLabel}>Selected delivery location</Text>
+            {resolving ? (
+              <ActivityIndicator
+                size="small"
+                color={C.primary}
+                style={{ alignSelf: "flex-start", marginTop: 2 }}
+              />
+            ) : (
+              <Text style={mp.addressValue} numberOfLines={2}>
+                {label || "Tap on map to select a location"}
+              </Text>
+            )}
+            <Text style={mp.addressCoords}>
+              {pin.latitude.toFixed(5)}, {pin.longitude.toFixed(5)}
             </Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
+        {/* Confirm button */}
+        <TouchableOpacity
+          style={[mp.confirmBtn, !canConfirm && { opacity: 0.55 }]}
+          onPress={() => canConfirm && onConfirm(pin, label)}
+          disabled={!canConfirm}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="checkmark-circle" size={18} color="#fff" />
+          <Text style={mp.confirmText}>Confirm Delivery Location</Text>
+        </TouchableOpacity>
       </View>
     </Modal>
   );
 }
+
 // ─── Reusable UI pieces ───────────────────────────────────────────────────────
 
 function SectionHeader({ icon, label }: { icon: string; label: string }) {
