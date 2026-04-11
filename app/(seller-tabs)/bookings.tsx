@@ -2,18 +2,19 @@ import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../utils/axiosinstance";
 
@@ -60,15 +61,27 @@ const TAB_STATUS_MAP: Record<TabKey, string | string[]> = {
   history: ["completed", "cancelled"],
 };
 
+const formatStatusLabel = (status?: string) => {
+  if (!status) return "-";
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
 const mapBooking = (item: any) => ({
   _id: item._id,
-  farmer: item.name,
+  clientName: item.name,
+  resourceName: item.resourceName?.trim() || item.bookingType,
   machine: item.bookingType,
   acres: item.acre,
   startDate: item.startDate,
   endDate: item.endDate,
   startOtp: item.startOtp,
   endOtp: item.endOtp,
+  clientPhoneno: item.clientPhoneno,
+  ownerPhoneno: item.ownerPhoneno,
+  amount: item.totalCost,
+  bookingStatus: item.bookingStatus,
+  deliveryAddress: item.deliveryAddress,
+  deliveryLocation: item.deliveryLocation,
   date: new Date(item.startDate).toLocaleDateString("en-IN", {
     day: "2-digit",
     month: "short",
@@ -79,8 +92,6 @@ const mapBooking = (item: any) => ({
     month: "short",
     year: "numeric",
   }),
-  amount: item.totalCost,
-  bookingStatus: item.bookingStatus,
 });
 
 function useBookings(tab: TabKey) {
@@ -92,58 +103,50 @@ function useBookings(tab: TabKey) {
     setLoading(true);
     setError(null);
     setData([]);
-  try {
-  if (tab === "history") {
-    // Completed + Cancelled
-    const [completedRes, cancelledRes] = await Promise.all([
-      api.get("/booking/received/owner", {
-        params: { status: "completed", bookingType: "machine" },
-      }),
-      api.get("/booking/received/owner", {
-        params: { status: "cancelled", bookingType: "machine" },
-      }),
-    ]);
+    try {
+      if (tab === "history") {
+        const [completedRes, cancelledRes] = await Promise.all([
+          api.get("/booking/received/owner", {
+            params: { status: "completed", bookingType: "machine" },
+          }),
+          api.get("/booking/received/owner", {
+            params: { status: "cancelled", bookingType: "machine" },
+          }),
+        ]);
 
-    const merged = [
-      ...(completedRes.data ?? []),
-      ...(cancelledRes.data ?? []),
-    ].map(mapBooking);
+        const merged = [
+          ...(completedRes.data ?? []),
+          ...(cancelledRes.data ?? []),
+        ].map(mapBooking);
 
-    setData(merged);
-  }
+        setData(merged);
+      } else if (tab === "ongoing") {
+        const [acceptedRes, startedRes] = await Promise.all([
+          api.get("/booking/received/owner", {
+            params: { status: "accepted", bookingType: "machine" },
+          }),
+          api.get("/booking/received/owner", {
+            params: { status: "started", bookingType: "machine" },
+          }),
+        ]);
 
-  else if (tab === "ongoing") {
-    // Accepted + Started
-    const [acceptedRes, startedRes] = await Promise.all([
-      api.get("/booking/received/owner", {
-        params: { status: "accepted", bookingType: "machine" },
-      }),
-      api.get("/booking/received/owner", {
-        params: { status: "started", bookingType: "machine" },
-      }),
-    ]);
+        const merged = [
+          ...(acceptedRes.data ?? []),
+          ...(startedRes.data ?? []),
+        ].map(mapBooking);
 
-    const merged = [
-      ...(acceptedRes.data ?? []),
-      ...(startedRes.data ?? []),
-    ].map(mapBooking);
+        setData(merged);
+      } else {
+        const res = await api.get("/booking/received/owner", {
+          params: {
+            status: TAB_STATUS_MAP[tab],
+            bookingType: "machine",
+          },
+        });
 
-    setData(merged);
-  }
-
-  else {
-    // Requested OR Rejected
-    const res = await api.get("/booking/received/owner", {
-      params: {
-        status: TAB_STATUS_MAP[tab],
-        bookingType: "machine",
-      },
-    });
-
-    setData((res.data ?? []).map(mapBooking));
-  }
-
-} catch (err: any) {
+        setData((res.data ?? []).map(mapBooking));
+      }
+    } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to fetch bookings");
     } finally {
       setLoading(false);
@@ -186,7 +189,60 @@ function Avatar({
   return (
     <View style={[s.avatarCircle, { backgroundColor: bg }]}>
       <Text style={[s.avatarText, { color }]}>
-        {name?.charAt(0)?.toUpperCase()}
+        {name?.charAt(0)?.toUpperCase() || "R"}
+      </Text>
+    </View>
+  );
+}
+
+function openMapLocation(item: any) {
+  const coords = item?.deliveryLocation?.coordinates;
+
+  if (!coords || coords.length < 2) {
+    Alert.alert("Location unavailable", "Delivery location is not available for this booking.");
+    return;
+  }
+
+  const [longitude, latitude] = coords;
+  const label = encodeURIComponent(item?.deliveryAddress || item?.resourceName || "Booking Location");
+
+  const url = Platform.select({
+    ios: `http://maps.apple.com/?ll=${latitude},${longitude}&q=${label}`,
+    android: `geo:${latitude},${longitude}?q=${latitude},${longitude}(${label})`,
+    default: `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`,
+  });
+
+  if (!url) return;
+
+  Linking.openURL(url).catch(() => {
+    const fallbackUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    Linking.openURL(fallbackUrl).catch(() => {
+      Alert.alert("Unable to open map", "Please try again.");
+    });
+  });
+}
+
+function InfoRow({
+  icon,
+  label,
+  value,
+  valueColor = C.ink,
+}: {
+  icon: any;
+  label: string;
+  value?: string | number;
+  valueColor?: string;
+}) {
+  if (value === undefined || value === null || value === "") return null;
+
+  return (
+    <View style={s.infoRow}>
+      <View style={s.infoRowLeft}>
+        <Ionicons name={icon} size={15} color={C.muted} />
+        <Text style={s.infoLabel}>{label}</Text>
+      </View>
+      <Text style={[s.infoValue, { color: valueColor }]} numberOfLines={1}>
+        {value}
       </Text>
     </View>
   );
@@ -253,7 +309,38 @@ export default function BookingsScreen() {
           <Ionicons name="cash-outline" size={14} color={C.muted} />
           <Text style={s.amountRowLabel}>{label}</Text>
         </View>
-        <Text style={[s.amountRowValue, { color }]}>₹{value.toLocaleString("en-IN")}</Text>
+        <Text style={[s.amountRowValue, { color }]}>
+          ₹{Number(value || 0).toLocaleString("en-IN")}
+        </Text>
+      </View>
+    );
+  }
+
+  function BookingHeader({
+    item,
+    badgeBg,
+    badgeColor,
+  }: {
+    item: any;
+    badgeBg: string;
+    badgeColor: string;
+  }) {
+    return (
+      <View style={s.bookingTop}>
+        <View style={s.personWrap}>
+          <Avatar name={item.resourceName} color={badgeColor} bg={badgeBg} />
+          <View style={s.personInfo}>
+            <Text style={s.resourceName}>{item.resourceName}</Text>
+            <Text style={s.clientName}>{item.clientName}</Text>
+          </View>
+        </View>
+
+        <View style={[s.statusPill, { backgroundColor: badgeBg }]}>
+          <Ionicons name="information-circle-outline" size={12} color={badgeColor} />
+          <Text style={[s.statusText, { color: badgeColor }]}>
+            {formatStatusLabel(item.bookingStatus)}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -307,22 +394,27 @@ export default function BookingsScreen() {
 
     return (
       <SectionCard accentColor={C.primary}>
-        <View style={s.bookingTop}>
-          <View style={s.personWrap}>
-            <Avatar name={item.farmer} />
-            <View style={s.personInfo}>
-              <Text style={s.farmerName}>{item.farmer}</Text>
-              <Text style={s.machineName}>{item.machine}</Text>
-            </View>
-          </View>
-
-          <View style={s.amountBadge}>
-            <Text style={s.amountText}>₹{item.amount.toLocaleString("en-IN")}</Text>
-          </View>
-        </View>
+        <BookingHeader item={item} badgeBg={C.infoSoft} badgeColor={C.info} />
 
         <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
+
+        <View style={s.infoBlock}>
+          <InfoRow icon="call-outline" label="Client Contact" value={item.clientPhoneno} />
+          <InfoRow icon="cash-outline" label="Booking Amount" value={`₹${Number(item.amount || 0).toLocaleString("en-IN")}`} />
+        </View>
+
         <View style={s.divider} />
+
+        <View style={s.topActionRow}>
+          <TouchableOpacity
+            style={s.mapBtn}
+            onPress={() => openMapLocation(item)}
+            activeOpacity={0.88}
+          >
+            <Ionicons name="location-outline" size={16} color={C.info} />
+            <Text style={s.mapBtnText}>Location</Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={s.bookingActions}>
           <TouchableOpacity
@@ -363,14 +455,19 @@ export default function BookingsScreen() {
     const isActive = now >= start && now <= end;
     const isUpcoming = now < start;
 
-    const statusColor = isActive ? C.success : isUpcoming ? C.info : C.warning;
-    const statusBg = isActive ? C.successSoft : isUpcoming ? C.infoSoft : C.warningSoft;
-    const statusLabel = isActive ? t("bookings.active") : isUpcoming ? "Upcoming" : "Wrapping up";
-    const statusIcon = isActive
-      ? "radio-button-on"
-      : isUpcoming
-      ? "time-outline"
-      : "flag-outline";
+    const statusColor =
+      item.bookingStatus === "started"
+        ? C.success
+        : item.bookingStatus === "accepted"
+        ? C.info
+        : C.warning;
+
+    const statusBg =
+      item.bookingStatus === "started"
+        ? C.successSoft
+        : item.bookingStatus === "accepted"
+        ? C.infoSoft
+        : C.warningSoft;
 
     const totalMs = end.getTime() - start.getTime();
     const elapsedMs = Math.min(Math.max(now.getTime() - start.getTime(), 0), totalMs);
@@ -406,7 +503,8 @@ export default function BookingsScreen() {
 
     const verifyAndExecute = async () => {
       const code = otp.join("");
-      const expectedOtp = otpAction === "start" ? String(item.startOtp ?? "") : String(item.endOtp ?? "");
+      const expectedOtp =
+        otpAction === "start" ? String(item.startOtp ?? "") : String(item.endOtp ?? "");
 
       if (code.length < 6) {
         setOtpError("Please enter the complete 6-digit OTP");
@@ -493,17 +591,17 @@ export default function BookingsScreen() {
                 <View style={os.farmerRow}>
                   <View style={[os.farmerAvatar, { backgroundColor: sheetSoft }]}>
                     <Text style={[os.farmerAvatarText, { color: sheetColor }]}>
-                      {item.farmer.charAt(0)}
+                      {item.clientName?.charAt(0) || "C"}
                     </Text>
                   </View>
                   <View>
-                    <Text style={os.farmerRowName}>{item.farmer}</Text>
-                    <Text style={os.farmerRowMachine}>{item.machine}</Text>
+                    <Text style={os.farmerRowName}>{item.resourceName}</Text>
+                    <Text style={os.farmerRowMachine}>{item.clientName}</Text>
                   </View>
                 </View>
 
                 <Text style={os.sheetSub}>
-                  Ask the farmer for the{" "}
+                  Ask the client for the{" "}
                   <Text style={os.sheetSubStrong}>
                     {otpAction === "start" ? "start" : "completion"}
                   </Text>{" "}
@@ -571,20 +669,7 @@ export default function BookingsScreen() {
         </Modal>
 
         <SectionCard accentColor={statusColor}>
-          <View style={s.bookingTop}>
-            <View style={s.personWrap}>
-              <Avatar name={item.farmer} color={statusColor} bg={statusBg} />
-              <View style={s.personInfo}>
-                <Text style={s.farmerName}>{item.farmer}</Text>
-                <Text style={s.machineName}>{item.machine}</Text>
-              </View>
-            </View>
-
-            <View style={[s.statusPill, { backgroundColor: statusBg }]}>
-              <Ionicons name={statusIcon as any} size={12} color={statusColor} />
-              <Text style={[s.statusText, { color: statusColor }]}>{statusLabel}</Text>
-            </View>
-          </View>
+          <BookingHeader item={item} badgeBg={statusBg} badgeColor={statusColor} />
 
           <View style={s.progressBlock}>
             <View style={s.progressRow}>
@@ -605,10 +690,32 @@ export default function BookingsScreen() {
           </View>
 
           <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
+
+          <View style={s.infoBlock}>
+            <InfoRow icon="call-outline" label="Client Contact" value={item.clientPhoneno} />
+            <InfoRow
+              icon="information-circle-outline"
+              label="Booking Status"
+              value={formatStatusLabel(item.bookingStatus)}
+              valueColor={statusColor}
+            />
+          </View>
+
           <View style={s.divider} />
           <MoneyRow label="Service amount" value={item.amount} />
 
-          {isUpcoming && (
+          <View style={s.topActionRow}>
+            <TouchableOpacity
+              style={s.mapBtn}
+              onPress={() => openMapLocation(item)}
+              activeOpacity={0.88}
+            >
+              <Ionicons name="location-outline" size={16} color={C.info} />
+              <Text style={s.mapBtnText}>Location</Text>
+            </TouchableOpacity>
+          </View>
+
+          {item.bookingStatus === "accepted" && (
             <TouchableOpacity
               style={[os.actionBtn, { backgroundColor: C.info, marginTop: 16 }]}
               onPress={() => openOtp("start")}
@@ -619,7 +726,7 @@ export default function BookingsScreen() {
             </TouchableOpacity>
           )}
 
-          {isActive && (
+          {item.bookingStatus === "started" && (
             <TouchableOpacity
               style={[os.actionBtn, { backgroundColor: C.success, marginTop: 16 }]}
               onPress={() => openOtp("complete")}
@@ -637,22 +744,18 @@ export default function BookingsScreen() {
   function RejectedCard({ item }: { item: any }) {
     return (
       <SectionCard accentColor={C.danger} style={{ opacity: 0.96 }}>
-        <View style={s.bookingTop}>
-          <View style={s.personWrap}>
-            <Avatar name={item.farmer} color={C.danger} bg={C.dangerSoft} />
-            <View style={s.personInfo}>
-              <Text style={s.farmerName}>{item.farmer}</Text>
-              <Text style={s.machineName}>{item.machine}</Text>
-            </View>
-          </View>
+        <BookingHeader item={item} badgeBg={C.dangerSoft} badgeColor={C.danger} />
+        <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
 
-          <View style={[s.statusPill, { backgroundColor: C.dangerSoft }]}>
-            <Ionicons name="close-circle" size={12} color={C.danger} />
-            <Text style={[s.statusText, { color: C.danger }]}>Rejected</Text>
-          </View>
+        <View style={s.infoBlock}>
+          <InfoRow
+            icon="information-circle-outline"
+            label="Booking Status"
+            value={formatStatusLabel(item.bookingStatus)}
+            valueColor={C.danger}
+          />
         </View>
 
-        <MetaRow date={item.date} acres={item.acres} />
         <View style={s.divider} />
         <MoneyRow label={t("bookings.amount")} value={item.amount} color={C.danger} />
       </SectionCard>
@@ -663,27 +766,21 @@ export default function BookingsScreen() {
     const isCompleted = item.bookingStatus === "completed";
     const color = isCompleted ? C.success : C.muted;
     const bgColor = isCompleted ? C.successSoft : "#F1ECE7";
-    const icon: any = isCompleted ? "checkmark-circle" : "ban-outline";
-    const label = isCompleted ? t("bookings.done") : t("bookings.cancelled");
 
     return (
       <SectionCard accentColor={color} style={{ opacity: isCompleted ? 1 : 0.92 }}>
-        <View style={s.bookingTop}>
-          <View style={s.personWrap}>
-            <Avatar name={item.farmer} color={color} bg={bgColor} />
-            <View style={s.personInfo}>
-              <Text style={s.farmerName}>{item.farmer}</Text>
-              <Text style={s.machineName}>{item.machine}</Text>
-            </View>
-          </View>
+        <BookingHeader item={item} badgeBg={bgColor} badgeColor={color} />
+        <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
 
-          <View style={[s.statusPill, { backgroundColor: bgColor }]}>
-            <Ionicons name={icon} size={12} color={color} />
-            <Text style={[s.statusText, { color }]}>{label}</Text>
-          </View>
+        <View style={s.infoBlock}>
+          <InfoRow
+            icon="information-circle-outline"
+            label="Booking Status"
+            value={formatStatusLabel(item.bookingStatus)}
+            valueColor={color}
+          />
         </View>
 
-        <MetaRow date={item.date} endDate={item.endDateFormatted} acres={item.acres} />
         <View style={s.divider} />
         <MoneyRow
           label={isCompleted ? t("bookings.earned") : t("bookings.amount")}
@@ -921,21 +1018,18 @@ const s = StyleSheet.create({
     alignItems: "center",
   },
   avatarText: { fontSize: 17, fontWeight: "900" },
-  farmerName: {
+
+  resourceName: {
     fontSize: 15,
     fontWeight: "800",
     color: C.ink,
     marginBottom: 2,
   },
-  machineName: { fontSize: 12, color: C.muted },
-
-  amountBadge: {
-    backgroundColor: C.accentSoft,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
+  clientName: {
+    fontSize: 12,
+    color: C.muted,
+    fontWeight: "600",
   },
-  amountText: { fontSize: 12, fontWeight: "900", color: C.accent },
 
   statusPill: {
     flexDirection: "row",
@@ -966,10 +1060,68 @@ const s = StyleSheet.create({
   },
   metaText: { fontSize: 12, color: C.muted, fontWeight: "600" },
 
+  infoBlock: {
+    gap: 10,
+    marginBottom: 14,
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FCFAF8",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: C.border,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    gap: 10,
+  },
+  infoRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: C.muted,
+    fontWeight: "700",
+  },
+  infoValue: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 13,
+    fontWeight: "800",
+    color: C.ink,
+  },
+
   divider: {
     height: 1,
     backgroundColor: C.border,
     marginBottom: 14,
+  },
+
+  topActionRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    marginBottom: 14,
+  },
+  mapBtn: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    backgroundColor: C.infoSoft,
+    borderWidth: 1,
+    borderColor: "#D6E6FA",
+  },
+  mapBtnText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: C.info,
   },
 
   bookingActions: { flexDirection: "row", gap: 10 },
