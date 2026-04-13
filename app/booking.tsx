@@ -7,19 +7,12 @@
  *
  * Backward-compatible: also accepts `machineId` param (older machine routes).
  *
- * Key changes from original:
- *  1. Works for both machine & labour; conditional fields & cost logic.
- *  2. Mandatory map picker (removed "Current Location" button).
- *  3. Search bar inside map modal (geocodes typed address → moves pin).
- *  4. Delivery GeoJSON coordinates stored in booking payload.
- *  5. Fixed: pricePerDay was a string — now always parseFloat'd.
- *  6. Fixed: machine geoLocation JSON string parsed before coord extraction.
- *  7. Fixed: distance/deliveryCost were computed before state settled — now
- *     computed inline from state.
- *  8. Labour cost = pricePerDay × numberOfWorkers × days (manual day input).
- *  9. Machine cost = pricePerDay × ceil(acres / maxAcreCoverage).
- * 10. resourceName stored in payload (machine.name / "Labour Provider").
- * 11. Availability calendar reused for both types.
+ * Map: OpenStreetMap via react-native-webview + Leaflet.js
+ *   → NO Google Maps, NO Google API key required
+ *   → Geocoding via Nominatim (free, no key)
+ *   → Works in production builds without crashing
+ *
+ * Install: npx expo install react-native-webview
  */
 
 import api from "@/app/utils/axiosinstance";
@@ -42,7 +35,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import { WebView } from "react-native-webview";
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 
@@ -76,7 +69,6 @@ const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
-const DAY_LABELS = ["Su","Mo","Tu","We","Th","Fr","Sa"];
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
 
@@ -84,9 +76,6 @@ function toDateStr(date: Date) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/**
- * Straight-line haversine distance with 1.3× road factor.
- */
 function haversineKm(a: LatLng, b: LatLng): number {
   const R = 6371;
   const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
@@ -100,10 +89,6 @@ function haversineKm(a: LatLng, b: LatLng): number {
   return Math.round(straight * 1.3 * 10) / 10;
 }
 
-/**
- * Parse machine / labour geoLocation into a LatLng.
- * Handles: GeoJSON string, GeoJSON object, {lat,lng}, {latitude,longitude}.
- */
 function extractCoords(resource: any): LatLng | null {
   if (!resource) return null;
   let g =
@@ -126,7 +111,196 @@ function extractCoords(resource: any): LatLng | null {
   return null;
 }
 
+// ─── Nominatim geocoding helpers (no API key, no Google) ─────────────────────
+
+// const NOMINATIM_HEADERS = {
+//   "User-Agent": "AgriDasApp/1.0",
+//   "Accept-Language": "en",
+// };
+
+async function nominatimReverse(lat: number, lng: number): Promise<string> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+      { headers: NOMINATIM_HEADERS }
+    );
+    const data = await res.json();
+    if (data?.display_name) return data.display_name;
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  } catch {
+    return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  }
+}
+
+type Result = { lat: number; lng: number; label: string };
+
+const NOMINATIM_HEADERS = {
+  "User-Agent": "AgriDasApp/1.0",
+  Accept: "application/json",
+  "Accept-Language": "hi,en", // 👈 IMPORTANT
+};
+
+// simple transliteration fallback (basic, no library)
+function generateVariants(query: string): string[] {
+  return [
+    query,
+    `${query}, India`,
+    query.replace(/,/g, ""),
+  ];
+}
+
+export async function nominatimSearch(
+  query: string
+): Promise<Result | null> {
+  try {
+    const queries = generateVariants(query);
+
+    let allResults: any[] = [];
+
+    for (const q of queries) {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?` +
+          `q=${encodeURIComponent(q)}` +
+          `&format=json` +
+          `&limit=5` +
+          `&addressdetails=1` +
+          `&countrycodes=in` +
+          `&dedupe=1`,
+        { headers: NOMINATIM_HEADERS }
+      );
+
+      const data = await res.json();
+
+      if (Array.isArray(data)) {
+        allResults.push(...data);
+      }
+    }
+
+    if (!allResults.length) return null;
+
+    // pick best match (simple heuristic)
+    const best = allResults.sort((a, b) => {
+      const aScore =
+        (a.display_name?.includes(query) ? 2 : 0) +
+        (a.type === "village" ? 3 : 0);
+
+      const bScore =
+        (b.display_name?.includes(query) ? 2 : 0) +
+        (b.type === "village" ? 3 : 0);
+
+      return bScore - aScore;
+    })[0];
+
+    return {
+      lat: parseFloat(best.lat),
+      lng: parseFloat(best.lon),
+      label: best.display_name,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Leaflet map HTML (no Google, uses OpenStreetMap tiles) ───────────────────
+
+function buildMapHtml(defaultLat: number, defaultLng: number): string {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body, #map { width: 100%; height: 100%; overflow: hidden; background: #e8f5e9; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+(function () {
+  try {
+    var defaultLat = ${defaultLat};
+    var defaultLng = ${defaultLng};
+
+var map = L.map('map', {
+  zoomControl: true,
+  attributionControl: true
+}).setView([defaultLat, defaultLng], 12);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors',
+  maxZoom: 19,
+}).addTo(map);
+
+var marker = L.marker([defaultLat, defaultLng], {
+  draggable: true
+}).addTo(map);
+
+// ⭐ IMPORTANT FIX
+window.map = map;
+window.marker = marker;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+      crossOrigin: true
+    }).addTo(map);
+
+    var greenIcon = L.divIcon({
+      className: '',
+      html: '<div style="width:32px;height:32px;background:#1E7F43;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.35);"></div>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 32],
+      popupAnchor: [0, -34]
+    });
+
+    var marker = L.marker([defaultLat, defaultLng], {
+      draggable: true,
+      icon: greenIcon
+    }).addTo(map);
+
+    function sendCoords(lat, lng) {
+      try {
+        window.ReactNativeWebView.postMessage(
+          JSON.stringify({ type: 'coords', lat: lat, lng: lng })
+        );
+      } catch(e) {}
+    }
+
+    marker.on('dragend', function (e) {
+      var pos = e.target.getLatLng();
+      sendCoords(pos.lat, pos.lng);
+    });
+
+    map.on('click', function (e) {
+      marker.setLatLng(e.latlng);
+      sendCoords(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Tell React Native the map is ready
+    setTimeout(function() {
+      try {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'ready' }));
+      } catch(e) {}
+    }, 300);
+
+  } catch(err) {
+    try {
+      window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'error', msg: String(err) }));
+    } catch(e) {}
+  }
+})();
+</script>
+</body>
+</html>
+`.trim();
+}
+
 // ─── Availability Calendar ────────────────────────────────────────────────────
+
 function AvailabilityPicker({
   resourceId,
   selectedDate,
@@ -150,87 +324,67 @@ function AvailabilityPicker({
     fetchAvailability();
   }, []);
 
-const fetchAvailability = async () => {
-  try {
-    const res = await api.get(
-      `https://agridas-latest.onrender.com/booking/availabilyStatus/${resourceId}`
-    );
+  const fetchAvailability = async () => {
+    try {
+      const res = await api.get(
+        `https://agridas-latest.onrender.com/booking/availabilyStatus/${resourceId}`
+      );
+      const bookings: { startDate: string; endDate: string }[] = res.data ?? [];
+      const expanded = new Set<string>();
+      const p = (n: number) => String(n).padStart(2, "0");
+      const toStr = (d: Date) =>
+        `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+      bookings.forEach((b) => {
+        const start = new Date(b.startDate);
+        const end = new Date(b.endDate);
+        const cur = new Date(start);
+        while (cur <= end) {
+          expanded.add(toStr(new Date(cur)));
+          cur.setDate(cur.getDate() + 1);
+        }
+      });
+      setOccupiedDates(expanded);
+    } catch (e) {
+      console.log("Availability fetch error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const bookings: { startDate: string; endDate: string }[] = res.data ?? [];
+  const p = (n: number) => String(n).padStart(2, "0");
+  const toStr = (date: Date) =>
+    `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
 
-    const expanded = new Set<string>();
-
-    const pad = (n: number) => String(n).padStart(2, "0");
-
-    const toStr = (d: Date) =>
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-    bookings.forEach((b) => {
-      const start = new Date(b.startDate);
-      const end = new Date(b.endDate);
-
-      const cur = new Date(start);
-
-      while (cur <= end) {
-        expanded.add(toStr(new Date(cur)));
-        cur.setDate(cur.getDate() + 1);
-      }
-    });
-
-    setOccupiedDates(expanded);
-  } catch (e) {
-    console.log("Availability fetch error:", e);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const pad = (n: number) => String(n).padStart(2, "0");
-
-  const toDateStr = (date: Date) =>
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-
-  // ✅ NEW: check full range conflict
   const checkRangeConflict = (start: Date) => {
     const temp = new Date(start);
-
     for (let i = 0; i < daysNeeded; i++) {
       const d = new Date(temp);
       d.setDate(temp.getDate() + i);
-
-      if (occupiedDates.has(toDateStr(d))) return true;
+      if (occupiedDates.has(toStr(d))) return true;
     }
     return false;
   };
 
   const handleSelect = (dateStr: string) => {
     const start = new Date(dateStr);
-
     if (checkRangeConflict(start)) {
       alert("These dates overlap with existing bookings. Please choose another slot.");
       return;
     }
-
     onSelectDate(dateStr);
   };
 
-  // ✅ NEW: highlight full selected range
   const isInSelectedRange = (dateStr: string) => {
     if (!selectedDate) return false;
-
     const start = new Date(selectedDate);
     const target = new Date(dateStr);
-
-    const diff =
-      Math.floor((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-
+    const diff = Math.floor((target.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
     return diff >= 0 && diff < daysNeeded;
   };
 
   const firstDay = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-
-  const todayStr = toDateStr(today);
+  const todayStr = toStr(today);
 
   const cells: (number | null)[] = [
     ...Array(firstDay).fill(null),
@@ -242,7 +396,6 @@ const fetchAvailability = async () => {
       <Text style={{ fontSize: 14, fontWeight: "800", marginBottom: 10 }}>
         Select Start Date
       </Text>
-
       {loading ? (
         <ActivityIndicator color={C.primary} />
       ) : (
@@ -257,11 +410,9 @@ const fetchAvailability = async () => {
             >
               <Text>Prev</Text>
             </TouchableOpacity>
-
             <Text style={{ fontWeight: "800" }}>
               {MONTHS[viewMonth]} {viewYear}
             </Text>
-
             <TouchableOpacity
               onPress={() =>
                 setViewMonth((m) =>
@@ -276,14 +427,10 @@ const fetchAvailability = async () => {
           <View style={bs.calGrid}>
             {cells.map((day, idx) => {
               if (!day) return <View key={idx} style={bs.calCell} />;
-
-              const dateStr = `${viewYear}-${pad(viewMonth + 1)}-${pad(day)}`;
+              const dateStr = `${viewYear}-${p(viewMonth + 1)}-${p(day)}`;
               const isOccupied = occupiedDates.has(dateStr);
               const isPast = new Date(dateStr) < new Date(todayStr);
-
-              // ✅ NEW RANGE LOGIC
               const inRange = isInSelectedRange(dateStr);
-
               return (
                 <TouchableOpacity
                   key={dateStr}
@@ -291,29 +438,18 @@ const fetchAvailability = async () => {
                   onPress={() => handleSelect(dateStr)}
                   style={[
                     bs.calCell,
-
-                    // booked date
                     isOccupied && bs.calCellOccupied,
-
-                    // selected full range highlight
                     inRange && !isOccupied && {
                       backgroundColor: "#A8D5B5",
                       borderRadius: 8,
                     },
-
-                    // normal available
                     !isOccupied && !inRange && bs.calCellAvail,
-
                     isPast && { opacity: 0.3 },
                   ]}
                 >
                   <Text
                     style={{
-                      color: isOccupied
-                        ? "red"
-                        : inRange
-                        ? "#1E7F43"
-                        : "green",
+                      color: isOccupied ? "red" : inRange ? "#1E7F43" : "green",
                       fontWeight: "700",
                     }}
                   >
@@ -335,7 +471,7 @@ const fetchAvailability = async () => {
   );
 }
 
-// ─── Map Picker Modal (with address search) ───────────────────────────────────
+// ─── Map Picker Modal (OpenStreetMap via WebView + Leaflet) ───────────────────
 
 function MapPickerModal({
   visible,
@@ -346,95 +482,120 @@ function MapPickerModal({
   onConfirm: (coords: LatLng, label: string) => void;
   onClose: () => void;
 }) {
-  const DEFAULT = { latitude: 19.9975, longitude: 73.7898 }; // Maharashtra
-  const [pin, setPin] = useState<LatLng>(DEFAULT);
+  // Default: center of India
+  const DEFAULT_LAT = 20.5937;
+  const DEFAULT_LNG = 78.9629;
+
+  const webViewRef = useRef<WebView>(null);
+  const mapReadyRef = useRef(false);
+  const pendingCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  const [pin, setPin] = useState<LatLng>({ latitude: DEFAULT_LAT, longitude: DEFAULT_LNG });
   const [label, setLabel] = useState("");
   const [resolving, setResolving] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [searching, setSearching] = useState(false);
-  const [initialized, setInitialized] = useState(false);
-  const mapRef = useRef<MapView>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
-  // On first open, try to center map at user's current GPS
+  // Reset state every time modal opens
   useEffect(() => {
-    if (!visible || initialized) return;
-    (async () => {
-      try {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status === "granted") {
-          const loc = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Low,
-          });
-          const coords: LatLng = {
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          };
-          setPin(coords);
-          // Small delay so map is fully mounted
-          setTimeout(() => {
-            mapRef.current?.animateToRegion(
-              { ...coords, latitudeDelta: 0.05, longitudeDelta: 0.05 },
-              600,
-            );
-          }, 400);
-        }
-      } catch { /* fall back to default */ }
-      setInitialized(true);
-    })();
+    if (visible) {
+      mapReadyRef.current = false;
+      pendingCoordsRef.current = null;
+      setLabel("");
+      setSearchText("");
+      setMapLoaded(false);
+    }
   }, [visible]);
 
-  // Reverse-geocode whenever pin changes
-  useEffect(() => {
-    if (!visible) return;
-    resolveAddress(pin);
-  }, [pin.latitude, pin.longitude]);
+  // Inject JS to move marker + pan map
+  const moveMarker = (lat: number, lng: number) => {
+    const js = `
+      (function() {
+        try {
+          marker.setLatLng([${lat}, ${lng}]);
+          map.setView([${lat}, ${lng}], 14, { animate: true });
+        } catch(e) {}
+      })();
+      true;
+    `;
+    webViewRef.current?.injectJavaScript(js);
+    setPin({ latitude: lat, longitude: lng });
+  };
 
-  const resolveAddress = async (coords: LatLng) => {
-    setResolving(true);
+  // After map is ready, try to center at user GPS
+  const initUserLocation = async () => {
     try {
-      const results = await Location.reverseGeocodeAsync(coords);
-      if (results.length > 0) {
-        const r = results[0];
-        const parts = [r.name, r.city ?? r.subregion, r.region]
-          .filter(Boolean)
-          .join(", ");
-        setLabel(parts || "Selected location");
-      } else {
-        setLabel("Selected location");
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === "granted") {
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Low,
+        });
+        const { latitude, longitude } = loc.coords;
+        moveMarker(latitude, longitude);
+        const addr = await nominatimReverse(latitude, longitude);
+        setLabel(addr);
       }
     } catch {
-      setLabel("Selected location");
-    } finally {
-      setResolving(false);
+      // Fall back to default center — no crash
     }
   };
 
-  // Geocode typed address text → move pin
+  // Handle messages from Leaflet map
+  const handleMessage = (event: any) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+
+      if (data.type === "ready") {
+        mapReadyRef.current = true;
+        setMapLoaded(true);
+        // If GPS location was fetched before map was ready, apply it now
+        if (pendingCoordsRef.current) {
+          moveMarker(pendingCoordsRef.current.lat, pendingCoordsRef.current.lng);
+          pendingCoordsRef.current = null;
+        } else {
+          initUserLocation();
+        }
+      }
+
+      if (data.type === "coords") {
+        const lat: number = data.lat;
+        const lng: number = data.lng;
+        setPin({ latitude: lat, longitude: lng });
+        // Reverse geocode without blocking map interaction
+        setResolving(true);
+        nominatimReverse(lat, lng).then((addr) => {
+          setLabel(addr);
+          setResolving(false);
+        });
+      }
+    } catch {
+      // Silently ignore parse errors
+    }
+  };
+
   const handleSearch = async () => {
     const q = searchText.trim();
     if (!q) return;
     setSearching(true);
     try {
-      const results = await Location.geocodeAsync(q);
-      if (results.length > 0) {
-        const { latitude, longitude } = results[0];
-        const coords: LatLng = { latitude, longitude };
-        setPin(coords);
-        mapRef.current?.animateToRegion(
-          { latitude, longitude, latitudeDelta: 0.02, longitudeDelta: 0.02 },
-          800,
-        );
+      const result = await nominatimSearch(q);
+      if (result) {
+        moveMarker(result.lat, result.lng);
+        setLabel(result.label);
       } else {
         Alert.alert("Not Found", "Could not find that location. Try a more specific address.");
       }
     } catch {
-      Alert.alert("Search Error", "Location search failed. Please try again.");
+      Alert.alert("Search Error", "Location search failed. Please check your connection.");
     } finally {
       setSearching(false);
     }
   };
 
   const canConfirm = !!label && !resolving;
+
+  const mapHtml = buildMapHtml(DEFAULT_LAT, DEFAULT_LNG);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -470,7 +631,10 @@ function MapPickerModal({
               autoCorrect={false}
             />
             {searchText.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchText("")} style={{ marginRight: 6 }}>
+              <TouchableOpacity
+                onPress={() => setSearchText("")}
+                style={{ marginRight: 6 }}
+              >
                 <Ionicons name="close-circle" size={16} color={C.muted} />
               </TouchableOpacity>
             )}
@@ -481,10 +645,11 @@ function MapPickerModal({
             disabled={searching}
             activeOpacity={0.8}
           >
-            {searching
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Text style={mp.searchBtnText}>Go</Text>
-            }
+            {searching ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={mp.searchBtnText}>Go</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -492,25 +657,37 @@ function MapPickerModal({
         <View style={mp.hint}>
           <Ionicons name="information-circle-outline" size={14} color={C.primary} />
           <Text style={mp.hintText}>
-            Search or tap the map · Drag pin to fine-tune
+            Search or tap the map · Drag the pin to fine-tune
           </Text>
         </View>
 
-        {/* Map */}
-        <MapView
-          ref={mapRef}
-          style={mp.map}
-          provider={PROVIDER_GOOGLE}
-          initialRegion={{ ...DEFAULT, latitudeDelta: 0.05, longitudeDelta: 0.05 }}
-          onPress={(e) => setPin(e.nativeEvent.coordinate)}
-        >
-          <Marker
-            coordinate={pin}
-            pinColor={C.primary}
-            draggable
-            onDragEnd={(e) => setPin(e.nativeEvent.coordinate)}
+        {/* Map — WebView with Leaflet (OpenStreetMap, no Google API) */}
+        <View style={{ flex: 1 }}>
+          <WebView
+            ref={webViewRef}
+            source={{ html: mapHtml }}
+            style={mp.map}
+            onMessage={handleMessage}
+            javaScriptEnabled
+            domStorageEnabled
+            originWhitelist={["*"]}
+            mixedContentMode="always"
+            allowsInlineMediaPlayback
+            // Prevents white flash / crash on some Android builds
+            androidLayerType="hardware"
+            // Scroll inside WebView should not interfere with RN scroll
+            scrollEnabled={false}
+            bounces={false}
           />
-        </MapView>
+
+          {/* Loading overlay while Leaflet initialises */}
+          {!mapLoaded && (
+            <View style={mp.mapLoader}>
+              <ActivityIndicator size="large" color={C.primary} />
+              <Text style={mp.mapLoaderText}>Loading map…</Text>
+            </View>
+          )}
+        </View>
 
         {/* Address bar */}
         <View style={mp.addressBar}>
@@ -676,7 +853,6 @@ function DeliveryLocationCard({
     <View style={bs.card}>
       <SectionHeader icon="car-outline" label="Delivery Location" />
 
-      {/* Pick on Map — always visible */}
       <TouchableOpacity style={dl.mapBtn} onPress={onOpenMap} activeOpacity={0.85}>
         <View style={dl.mapBtnIcon}>
           <Ionicons name="map" size={16} color="#fff" />
@@ -692,7 +868,6 @@ function DeliveryLocationCard({
         <Ionicons name="chevron-forward" size={16} color={C.primary} />
       </TouchableOpacity>
 
-      {/* Result after location is chosen */}
       {hasLocation && distanceKm !== null && (
         <View style={dl.resultCard}>
           <View style={dl.resultRow}>
@@ -723,7 +898,6 @@ function DeliveryLocationCard({
         </View>
       )}
 
-      {/* No provider coords — delivery cost TBD */}
       {hasLocation && distanceKm === null && (
         <View style={dl.resultCard}>
           <View style={dl.resultRow}>
@@ -739,7 +913,6 @@ function DeliveryLocationCard({
         </View>
       )}
 
-      {/* Empty state */}
       {!hasLocation && (
         <View style={dl.emptyHint}>
           <Ionicons name="location-outline" size={14} color={C.muted} />
@@ -755,7 +928,6 @@ function DeliveryLocationCard({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function BookingScreen() {
-  // Support both old `machineId` param and new `resourceId`/`bookingType` params
   const params = useLocalSearchParams<{
     resourceId?: string;
     machineId?: string;
@@ -772,30 +944,24 @@ export default function BookingScreen() {
     Alert.alert(title, Array.isArray(message) ? message.join(", ") : String(message ?? ""));
   }
 
-  // ── Resource data ────────────────────────────────────────────────────────────
   const [resource, setResource] = useState<any>(null);
   const [loadingResource, setLoadingResource] = useState(true);
 
-  // ── Form state ───────────────────────────────────────────────────────────────
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [acre, setAcre] = useState("0");
-  // Labour only: manual number of days
   const [manualDays, setManualDays] = useState("0");
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
 
-  // ── Delivery location state ──────────────────────────────────────────────────
   const [deliveryCoords, setDeliveryCoords] = useState<LatLng | null>(null);
   const [deliveryLabel, setDeliveryLabel] = useState("");
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [mapVisible, setMapVisible] = useState(false);
 
-  // ── Submitting ───────────────────────────────────────────────────────────────
   const [submitting, setSubmitting] = useState(false);
 
-  // ── Load resource ────────────────────────────────────────────────────────────
   useEffect(() => { loadResource(); }, []);
 
   const loadResource = async () => {
@@ -816,7 +982,6 @@ export default function BookingScreen() {
     }
   };
 
-  // ── Derive endDate whenever startDate / acres / days / resource change ────────
   useEffect(() => {
     if (!startDate || !resource) return;
     const days = computeDaysNeeded();
@@ -825,7 +990,6 @@ export default function BookingScreen() {
     setEndDate(toDateStr(end));
   }, [startDate, acre, manualDays, resource]);
 
-  // ── Recalculate distance when delivery coords change ─────────────────────────
   useEffect(() => {
     if (!deliveryCoords || !resource) {
       setDistanceKm(null);
@@ -833,14 +997,12 @@ export default function BookingScreen() {
     }
     const providerCoords = extractCoords(resource);
     if (!providerCoords) {
-      // No provider coords — we'll store delivery location but can't compute distance
       setDistanceKm(null);
       return;
     }
     setDistanceKm(haversineKm(deliveryCoords, providerCoords));
   }, [deliveryCoords, resource]);
 
-  // ── Cost derived values ──────────────────────────────────────────────────────
   const pricePerDay: number = parseFloat(resource?.pricePerDay ?? "0") || 0;
   const deliveryPerKm: number = resource?.deliveryChargePerKm ?? 0;
   const maxAcrePerDay: number = resource?.maxAcreCoverage ?? 1;
@@ -866,14 +1028,12 @@ export default function BookingScreen() {
 
   const totalCost = serviceCost + deliveryCost;
 
-  // ── Map confirm handler ──────────────────────────────────────────────────────
   const handleMapConfirm = (coords: LatLng, label: string) => {
     setDeliveryCoords(coords);
     setDeliveryLabel(label);
     setMapVisible(false);
   };
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!name.trim())
       return showAlert("Missing Info", "Please enter your full name.");
@@ -919,11 +1079,9 @@ export default function BookingScreen() {
           type: "Point",
           coordinates: [deliveryCoords.longitude, deliveryCoords.latitude],
         },
-        // Human-readable label for owner reference
         deliveryAddress: deliveryLabel,
-        // Resource name for display in booking history
         resourceName,
-        bookingLocationId:resourceId // need to remove this 
+        bookingLocationId: resourceId,
       };
 
       await api.post("https://agridas-latest.onrender.com/booking/create", payload);
@@ -946,7 +1104,6 @@ export default function BookingScreen() {
     }
   };
 
-  // ── Loading state ────────────────────────────────────────────────────────────
   if (loadingResource) {
     return (
       <View style={bs.loadingScreen}>
@@ -960,7 +1117,6 @@ export default function BookingScreen() {
 
   if (!resource) return null;
 
-  // ── Derived display values ───────────────────────────────────────────────────
   const summaryTitle = isMachine
     ? resource.name
     : `Labour · ${resource.skills?.slice(0, 2).join(", ") ?? ""}`;
@@ -970,15 +1126,12 @@ export default function BookingScreen() {
     <View style={bs.screen}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
 
-      {/* ── Top Bar ── */}
       <View style={bs.topBar}>
         <TouchableOpacity style={bs.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={18} color={C.ink} />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={bs.topTitle}>
-            Book {isMachine ? "Machine" : "Labour"}
-          </Text>
+          <Text style={bs.topTitle}>Book {isMachine ? "Machine" : "Labour"}</Text>
           <Text style={bs.topSubtitle} numberOfLines={1}>{summaryTitle}</Text>
         </View>
       </View>
@@ -992,7 +1145,7 @@ export default function BookingScreen() {
           contentContainerStyle={bs.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* ── Summary Card ── */}
+          {/* Summary Card */}
           <View style={bs.summaryCard}>
             <View style={bs.summaryLeft}>
               <Text style={bs.summaryName} numberOfLines={1}>{summaryTitle}</Text>
@@ -1004,27 +1157,19 @@ export default function BookingScreen() {
                 {isMachine ? (
                   <>
                     <View style={bs.summaryChip}>
-                      <Text style={bs.summaryChipText}>
-                        {resource.maxAcreCoverage} acres/day
-                      </Text>
+                      <Text style={bs.summaryChipText}>{resource.maxAcreCoverage} acres/day</Text>
                     </View>
                     <View style={bs.summaryChip}>
-                      <Text style={bs.summaryChipText}>
-                        ₹{resource.deliveryChargePerKm}/km delivery
-                      </Text>
+                      <Text style={bs.summaryChipText}>₹{resource.deliveryChargePerKm}/km delivery</Text>
                     </View>
                   </>
                 ) : (
                   <>
                     <View style={bs.summaryChip}>
-                      <Text style={bs.summaryChipText}>
-                        {resource.numberOfWorkers} workers
-                      </Text>
+                      <Text style={bs.summaryChipText}>{resource.numberOfWorkers} workers</Text>
                     </View>
                     <View style={bs.summaryChip}>
-                      <Text style={bs.summaryChipText}>
-                        ₹{resource.pricePerHour}/hr
-                      </Text>
+                      <Text style={bs.summaryChipText}>₹{resource.pricePerHour}/hr</Text>
                     </View>
                   </>
                 )}
@@ -1039,52 +1184,19 @@ export default function BookingScreen() {
             </View>
           </View>
 
-          {/* ── Your Details ── */}
+          {/* Your Details */}
           <View style={bs.card}>
             <SectionHeader icon="person-outline" label="Your Details" />
-            <Field
-              label="Full Name"
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Rahul Patil"
-              icon="person-circle-outline"
-            />
-            <Field
-              label="Phone Number"
-              value={phone}
-              onChangeText={setPhone}
-              placeholder="10-digit mobile number"
-              keyboardType="phone-pad"
-              maxLength={10}
-              icon="call-outline"
-            />
-            <Field
-              label="Address / Village"
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Village, Taluka, District"
-              icon="home-outline"
-            />
+            <Field label="Full Name" value={name} onChangeText={setName} placeholder="e.g. Rahul Patil" icon="person-circle-outline" />
+            <Field label="Phone Number" value={phone} onChangeText={setPhone} placeholder="10-digit mobile number" keyboardType="phone-pad" maxLength={10} icon="call-outline" />
+            <Field label="Address / Village" value={address} onChangeText={setAddress} placeholder="Village, Taluka, District" icon="home-outline" />
           </View>
 
-          {/* ── Field / Service Details ── */}
+          {/* Field / Service Details */}
           <View style={bs.card}>
-            <SectionHeader
-              icon="leaf-outline"
-              label={isMachine ? "Field Details" : "Service Details"}
-            />
-
-            <Field
-              label="Total Acreage"
-              value={acre}
-              onChangeText={setAcre}
-              placeholder="Number of acres"
-              keyboardType="numeric"
-              icon="expand-outline"
-            />
-
+            <SectionHeader icon="leaf-outline" label={isMachine ? "Field Details" : "Service Details"} />
+            <Field label="Total Acreage" value={acre} onChangeText={setAcre} placeholder="Number of acres" keyboardType="numeric" icon="expand-outline" />
             {isMachine ? (
-              /* Machine — auto-calculate days */
               <View style={bs.infoBox}>
                 <Ionicons name="information-circle-outline" size={13} color={C.primary} />
                 <Text style={bs.infoBoxText}>
@@ -1094,16 +1206,8 @@ export default function BookingScreen() {
                 </Text>
               </View>
             ) : (
-              /* Labour — manual days */
               <>
-                <Field
-                  label="Number of Days"
-                  value={manualDays}
-                  onChangeText={setManualDays}
-                  placeholder="How many days needed"
-                  keyboardType="numeric"
-                  icon="time-outline"
-                />
+                <Field label="Number of Days" value={manualDays} onChangeText={setManualDays} placeholder="How many days needed" keyboardType="numeric" icon="time-outline" />
                 <View style={bs.infoBox}>
                   <Ionicons name="information-circle-outline" size={13} color={C.primary} />
                   <Text style={bs.infoBoxText}>
@@ -1119,7 +1223,7 @@ export default function BookingScreen() {
             )}
           </View>
 
-          {/* ── Calendar ── */}
+          {/* Calendar */}
           {acreNum > 0 && (
             <AvailabilityPicker
               resourceId={resourceId}
@@ -1128,9 +1232,9 @@ export default function BookingScreen() {
               daysNeeded={daysNeeded}
               onSelectDate={setStartDate}
             />
-)}
+          )}
 
-          {/* ── Date Range Display ── */}
+          {/* Date Range Display */}
           {startDate && (
             <View style={bs.dateRangeCard}>
               <View style={bs.dateRangeRow}>
@@ -1173,7 +1277,7 @@ export default function BookingScreen() {
             </View>
           )}
 
-          {/* ── Delivery Location ── */}
+          {/* Delivery Location */}
           <DeliveryLocationCard
             distanceKm={distanceKm}
             deliveryCost={deliveryCost}
@@ -1183,7 +1287,7 @@ export default function BookingScreen() {
             onOpenMap={() => setMapVisible(true)}
           />
 
-          {/* ── Cost Summary ── */}
+          {/* Cost Summary */}
           <View style={bs.card}>
             <SectionHeader icon="receipt-outline" label="Cost Summary" />
             {isMachine ? (
@@ -1213,16 +1317,10 @@ export default function BookingScreen() {
               muted={distanceKm == null}
             />
             <View style={bs.costDivider} />
-            <CostRow
-              label="Total Amount"
-              value={`₹${totalCost.toLocaleString()}`}
-              bold
-              highlight
-            />
+            <CostRow label="Total Amount" value={`₹${totalCost.toLocaleString()}`} bold highlight />
             {distanceKm != null && (
               <Text style={bs.costNote}>
-                * Delivery distance estimated via road factor (1.3×).
-                Final charge confirmed at delivery.
+                * Delivery distance estimated via road factor (1.3×). Final charge confirmed at delivery.
               </Text>
             )}
           </View>
@@ -1231,7 +1329,7 @@ export default function BookingScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Sticky Bottom Bar ── */}
+      {/* Sticky Bottom Bar */}
       <View style={bs.bottomBar}>
         <View>
           <Text style={bs.bottomLabel}>Total Amount</Text>
@@ -1254,7 +1352,7 @@ export default function BookingScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Map Picker Modal ── */}
+      {/* Map Picker Modal */}
       <MapPickerModal
         visible={mapVisible}
         onConfirm={handleMapConfirm}
@@ -1344,55 +1442,20 @@ const bs = StyleSheet.create({
   },
   infoBoxText: { flex: 1, fontSize: 12, color: C.primary, fontWeight: "500", lineHeight: 18 },
 
-  // Calendar
   calCard: {
     backgroundColor: C.card, borderRadius: 16, padding: 16, marginBottom: 12,
     shadowColor: C.shadow, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1, shadowRadius: 6, elevation: 3,
   },
-  calLoading: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingVertical: 24, gap: 8,
-  },
-  calLoadingText: { fontSize: 13, color: C.muted, fontWeight: "600" },
   calNav: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
-  calNavBtn: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: C.bg,
-    borderWidth: 1, borderColor: C.border, justifyContent: "center", alignItems: "center",
-  },
-  calMonthLabel: { fontSize: 14, fontWeight: "800", color: C.ink },
-  calDayHeaders: { flexDirection: "row", marginBottom: 5 },
-  calDayHeader: { flex: 1, textAlign: "center", fontSize: 11, fontWeight: "600", color: C.muted },
   calGrid: { flexDirection: "row", flexWrap: "wrap" },
   calCell: {
     width: "14.28%", aspectRatio: 1, alignItems: "center", justifyContent: "center",
-    borderRadius: 8, marginVertical: 2, position: "relative",
+    borderRadius: 8, marginVertical: 2,
   },
-  calCellText: { fontSize: 13, fontWeight: "600", color: C.ink },
   calCellAvail: { backgroundColor: C.primaryFaint },
-  calCellAvailText: { color: C.primary },
   calCellOccupied: { backgroundColor: C.dangerFaint },
-  calCellOccupiedText: { color: C.danger },
-  calCellToday: { backgroundColor: C.primary },
-  calCellTodayText: { color: "#fff", fontWeight: "900" },
-  calCellSelected: { backgroundColor: C.gold, borderRadius: 8 },
-  calCellEnd: { backgroundColor: "#E65100", borderRadius: 8 },
-  calCellRange: { backgroundColor: C.primaryMid, borderRadius: 4 },
-  calCellPastText: { fontSize: 13, fontWeight: "500", color: C.border },
-  calCellSelectedText: { color: "#fff", fontWeight: "800" },
-  calDot: {
-    position: "absolute", bottom: 3, width: 4, height: 4,
-    borderRadius: 2, backgroundColor: C.danger,
-  },
-  calLegend: {
-    flexDirection: "row", gap: 14, marginTop: 12, paddingTop: 12,
-    borderTopWidth: 1, borderColor: C.border,
-  },
-  calLegendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  calLegendDot: { width: 11, height: 11, borderRadius: 3, borderWidth: 1.5 },
-  calLegendText: { fontSize: 11, fontWeight: "600", color: C.muted },
 
-  // Date range
   dateRangeCard: {
     backgroundColor: C.card, borderRadius: 16, padding: 14, marginBottom: 12,
     borderWidth: 1, borderColor: C.border,
@@ -1419,7 +1482,6 @@ const bs = StyleSheet.create({
   dateRangeBadgeText: { fontSize: 11, fontWeight: "700", color: C.primary },
   dateRangeNote: { fontSize: 11, color: C.muted, fontWeight: "500", flex: 1 },
 
-  // Cost
   costRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingVertical: 10, borderBottomWidth: 1, borderColor: C.border,
@@ -1433,7 +1495,6 @@ const bs = StyleSheet.create({
   costDivider: { height: 1, backgroundColor: C.border, marginVertical: 4 },
   costNote: { fontSize: 11, color: C.muted, marginTop: 10, lineHeight: 16 },
 
-  // Bottom bar
   bottomBar: {
     position: "absolute", bottom: 0, left: 0, right: 0,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
@@ -1452,8 +1513,6 @@ const bs = StyleSheet.create({
   },
   submitText: { color: "#fff", fontSize: 15, fontWeight: "800" },
 });
-
-// ─── Delivery location styles ─────────────────────────────────────────────────
 
 const dl = StyleSheet.create({
   mapBtn: {
@@ -1501,8 +1560,6 @@ const dl = StyleSheet.create({
   emptyHintText: { fontSize: 13, color: C.muted, fontWeight: "500", flex: 1 },
 });
 
-// ─── Map Picker styles ────────────────────────────────────────────────────────
-
 const mp = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   header: {
@@ -1518,7 +1575,6 @@ const mp = StyleSheet.create({
   },
   headerTitle: { fontSize: 16, fontWeight: "800", color: C.ink },
 
-  // Search bar
   searchRow: {
     flexDirection: "row", gap: 8, alignItems: "center",
     paddingHorizontal: 12, paddingVertical: 10,
@@ -1547,7 +1603,16 @@ const mp = StyleSheet.create({
   },
   hintText: { fontSize: 12, color: C.primary, fontWeight: "600" },
 
-  map: { flex: 1 },
+  map: { flex: 1, width: "100%" },
+
+  mapLoader: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: C.bg,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 10,
+  },
+  mapLoaderText: { fontSize: 13, color: C.muted, fontWeight: "600" },
 
   addressBar: {
     flexDirection: "row", alignItems: "flex-start", gap: 12,
