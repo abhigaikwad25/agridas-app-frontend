@@ -1,5 +1,5 @@
-import { setLocationList } from "@/services/authStorage";
 import { useLang } from "@/contexts/LanguageContext";
+import { setLocationList } from "@/services/authStorage";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { router } from "expo-router";
@@ -124,17 +124,6 @@ export default function HomeScreen() {
           style={s.banner}
           imageStyle={s.bannerImage}
         >
-          <View style={s.bannerOverlay}>
-            <Text style={s.bannerTitle}>
-              {t("home.rentTools")}
-              {"\n"}
-              {t("home.rentToolsDesc")}
-            </Text>
-            <TouchableOpacity style={s.bannerBtn} activeOpacity={0.85}>
-              <Text style={s.bannerBtnText}>{t("home.exploreNow")}</Text>
-              <Ionicons name="arrow-forward" size={14} color="#fff" />
-            </TouchableOpacity>
-          </View>
         </ImageBackground>
       </View>
 
