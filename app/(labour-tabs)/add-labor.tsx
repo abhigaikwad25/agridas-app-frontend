@@ -3,17 +3,18 @@ import { useLang } from "@/contexts/LanguageContext";
 import { getLocationList, getToken } from "@/services/authStorage";
 import { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import MapPickerModal from "@/components/MapPickerModal";
 
 const CROPS = ["Rice", "Cotton", "Wheat", "Soybean", "Sugarcane"];
 const CROP_ICONS: Record<string, string> = {
@@ -72,6 +73,14 @@ export default function AddLabourScreen() {
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [filteredLocations, setFilteredLocations] = useState<any[]>([]);
   const [search, setSearch] = useState("");
+  const [mapVisible, setMapVisible] = useState(false);
+
+  const [coords, setCoords] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
+  const [address, setAddress] = useState("");
 
   const [form, setForm] = useState({
     taluka: "",
@@ -102,6 +111,8 @@ export default function AddLabourScreen() {
       skills: [],
     });
     setSelectedLocation(null);
+    setCoords(null);      // ✅ ADD
+    setAddress("");
   };
 
   useEffect(() => {
@@ -136,6 +147,14 @@ export default function AddLabourScreen() {
       Alert.alert(t("common.error"), t("addLabour.selectLocation"));
       return;
     }
+    // ✅ MAP IS NOW MANDATORY
+    if (!coords || !address) {
+      Alert.alert(
+        t("common.error"),
+        "Please select exact location on map before submitting."
+      );
+      return;
+    }
     const token = await getToken();
     const payload = {
       taluka: form.taluka,
@@ -150,6 +169,14 @@ export default function AddLabourScreen() {
       skills: form.skills,
       crops: form.crops,
       locationId: selectedLocation._id,
+      labourLocation: {
+        type: "Point",
+        coordinates: [
+          coords.longitude, // IMPORTANT: lng first
+          coords.latitude
+        ],
+      },
+      address: address,
     };
     const res = await fetch(`${BASE_URL}/laborProvider/register`, {
       method: "POST",
@@ -306,6 +333,21 @@ export default function AddLabourScreen() {
             </Text>
             <Text style={s.dropdownChevron}>›</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={{
+              marginBottom: 14,
+              backgroundColor: C.primary,
+              padding: 14,
+              borderRadius: 12,
+              alignItems: "center",
+            }}
+            onPress={() => setMapVisible(true)}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700" }}>
+              📍 Select Exact Location on Map
+            </Text>
+
+          </TouchableOpacity>
 
           <View style={s.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
@@ -330,6 +372,15 @@ export default function AddLabourScreen() {
             </View>
           </View>
 
+          <MapPickerModal
+            visible={mapVisible}
+            onClose={() => setMapVisible(false)}
+            onConfirm={(c: any, addr: string) => {
+              setCoords(c);
+              setAddress(addr);
+              setMapVisible(false);
+            }}
+          />
           <FieldLabel label={t("addLabour.pincode")} />
           <TextInput
             style={s.input}
