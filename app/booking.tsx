@@ -1,19 +1,3 @@
-/**
- * BookingScreen.tsx — Unified booking screen for Machine & Labour
- *
- * Route params expected:
- *   resourceId  : string   (machine _id or labour _id)
- *   bookingType : "machine" | "laborProvider"
- *
- * Backward-compatible: also accepts `machineId` param (older machine routes).
- *
- * Map: OpenStreetMap via react-native-webview + Leaflet.js
- *   → NO Google Maps, NO Google API key required
- *   → Geocoding via Nominatim (free, no key)
- *   → Works in production builds without crashing
- *
- * Install: npx expo install react-native-webview
- */
 
 import api from "@/app/utils/axiosinstance";
 import { Ionicons } from "@expo/vector-icons";
@@ -938,6 +922,7 @@ export default function BookingScreen() {
   const bookingType: BookingType = params.bookingType ?? "machine";
   const isMachine = bookingType === "machine";
 
+  console.log(params)
   const router = useRouter();
 
   function showAlert(title: string, message: string) {

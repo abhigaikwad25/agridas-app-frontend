@@ -82,7 +82,6 @@ export default function AddLabourScreen() {
     ownerPhoneno: "",
     numberOfWorkers: "",
     pricePerDay: "",
-    pricePerHour: "",
     deliveryChargePerKm: "",
     crops: [] as string[],
     skills: [] as string[],
@@ -98,7 +97,6 @@ export default function AddLabourScreen() {
       ownerPhoneno: "",
       numberOfWorkers: "",
       pricePerDay: "",
-      pricePerHour: "",
       deliveryChargePerKm: "",
       crops: [],
       skills: [],
@@ -148,7 +146,6 @@ export default function AddLabourScreen() {
       ownerPhoneno: form.ownerPhoneno,
       numberOfWorkers: Number(form.numberOfWorkers),
       pricePerDay: Number(form.pricePerDay),
-      pricePerHour: form.pricePerHour ? Number(form.pricePerHour) : undefined,
       deliveryChargePerKm: Number(form.deliveryChargePerKm),
       skills: form.skills,
       crops: form.crops,
@@ -413,13 +410,6 @@ export default function AddLabourScreen() {
             hint={t("addLabour.perDayHint")}
             value={form.pricePerDay}
             onChangeText={(v) => setForm({ ...form, pricePerDay: v })}
-          />
-          <PricingCard
-            icon="⏱️"
-            label={t("addLabour.perHourRate")}
-            hint={t("addLabour.perHourHint")}
-            value={form.pricePerHour}
-            onChangeText={(v) => setForm({ ...form, pricePerHour: v })}
           />
           <PricingCard
             icon="🛣️"

@@ -3,6 +3,7 @@ import { BASE_URL } from "@/constants/api";
 import { getLocationList } from "@/services/authStorage";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -63,6 +64,7 @@ interface ProviderType {
 }
 
 export default function SearchLabourScreen() {
+  const router = useRouter();
   const [locations, setLocations] = useState<LocationType[]>([]);
   const [filteredLocations, setFilteredLocations] = useState<LocationType[]>([]);
   const [search, setSearch] = useState("");
@@ -157,16 +159,18 @@ export default function SearchLabourScreen() {
               ))}
             </View>
           )}
-
           {/* Description */}
           {item.description ? (
             <Text style={s.desc} numberOfLines={2}>{item.description}</Text>
           ) : null}
 
           <View style={s.divider} />
-
           {/* Book Now — full width */}
-          <TouchableOpacity style={s.bookBtn} activeOpacity={0.85}>
+          <TouchableOpacity
+            style={s.bookBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push(`/labor-details?machineId=${item._id}`)}
+          >
             <Text style={s.bookText}>Book Now</Text>
             <Ionicons name="arrow-forward" size={14} color="#fff" />
           </TouchableOpacity>
