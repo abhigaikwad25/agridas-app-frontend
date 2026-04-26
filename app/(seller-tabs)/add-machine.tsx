@@ -1,12 +1,13 @@
 import { BASE_URL } from "@/constants/api";
 import { useLang } from "@/contexts/LanguageContext";
 import { getLocationList, getToken } from "@/services/authStorage";
+import MapPickerModal from "@/components/MapPickerModal";
 import * as ImagePicker from "expo-image-picker";
-import * as Location from "expo-location";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   FlatList,
   Image,
   Modal,
@@ -57,20 +58,126 @@ const C = {
   border: "#E8E0D8",
   inputBg: "#FEFCFB",
   shadow: "rgba(107,39,55,0.10)",
+  success: "#2D6A4F",
 };
 
+// ─── Upload Stage Config ───────────────────────────────────────────────────
+const UPLOAD_STAGES = [
+  { icon: "📋", label: "Preparing your listing…", sub: "Getting everything ready" },
+  { icon: "🖼️", label: "Uploading photos…", sub: "This may take a moment on slow networks" },
+  { icon: "📍", label: "Saving location…", sub: "Almost done!" },
+  { icon: "✅", label: "Registering machine…", sub: "Just a few more seconds" },
+];
+
+// ─── Animated Upload Overlay ───────────────────────────────────────────────
+function UploadOverlay({ visible }: { visible: boolean }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const stageAnim = useRef(new Animated.Value(1)).current;
+  const dotAnim1 = useRef(new Animated.Value(0)).current;
+  const dotAnim2 = useRef(new Animated.Value(0)).current;
+  const dotAnim3 = useRef(new Animated.Value(0)).current;
+  const [stageIdx, setStageIdx] = useState(0);
+
+  useEffect(() => {
+    if (!visible) {
+      progressAnim.setValue(0);
+      setStageIdx(0);
+      return;
+    }
+
+    // Pulse ring
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.18, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 900, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+      ])
+    );
+    pulse.start();
+
+    // Bouncing dots
+    const makeDotLoop = (anim: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, { toValue: -8, duration: 350, useNativeDriver: true, easing: Easing.out(Easing.quad) }),
+          Animated.timing(anim, { toValue: 0, duration: 350, useNativeDriver: true, easing: Easing.in(Easing.quad) }),
+          Animated.delay(600),
+        ])
+      );
+    const d1 = makeDotLoop(dotAnim1, 0);
+    const d2 = makeDotLoop(dotAnim2, 180);
+    const d3 = makeDotLoop(dotAnim3, 360);
+    d1.start(); d2.start(); d3.start();
+
+    // Progress bar over ~8 seconds (realistic for slow net)
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: 8000,
+      useNativeDriver: false,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+    }).start();
+
+    // Stage cycling
+    const stageTimer = setInterval(() => {
+      Animated.timing(stageAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setStageIdx((i) => Math.min(i + 1, UPLOAD_STAGES.length - 1));
+        Animated.timing(stageAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+      });
+    }, 2200);
+
+    return () => {
+      pulse.stop();
+      d1.stop(); d2.stop(); d3.stop();
+      clearInterval(stageTimer);
+    };
+  }, [visible]);
+
+  if (!visible) return null;
+
+  const stage = UPLOAD_STAGES[stageIdx];
+  const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ["5%", "95%"] });
+
+  return (
+    <View style={ol.overlay}>
+      <View style={ol.backdrop} />
+      <View style={ol.sheet}>
+        {/* Pulsing icon ring */}
+        <View style={ol.iconWrap}>
+          <Animated.View style={[ol.ring, { transform: [{ scale: pulseAnim }] }]} />
+          <Animated.Text style={[ol.stageIcon, { opacity: stageAnim }]}>{stage.icon}</Animated.Text>
+        </View>
+
+        {/* Stage label */}
+        <Animated.View style={{ opacity: stageAnim, alignItems: "center" }}>
+          <Text style={ol.stageLabel}>{stage.label}</Text>
+          <Text style={ol.stageSub}>{stage.sub}</Text>
+        </Animated.View>
+
+        {/* Progress bar */}
+        <View style={ol.progressTrack}>
+          <Animated.View style={[ol.progressFill, { width: progressWidth }]} />
+          <View style={ol.progressShimmer} />
+        </View>
+
+        {/* Bouncing dots */}
+        <View style={ol.dotsRow}>
+          {[dotAnim1, dotAnim2, dotAnim3].map((anim, i) => (
+            <Animated.View key={i} style={[ol.dot, { transform: [{ translateY: anim }] }]} />
+          ))}
+        </View>
+
+        <Text style={ol.footerNote}>📶 Large photos may take longer on slow networks — please keep the app open</Text>
+      </View>
+    </View>
+  );
+}
+
+// ─── Pricing Card ──────────────────────────────────────────────────────────
 function PricingCard({
-  icon,
-  label,
-  hint,
-  value,
-  onChangeText,
+  icon, label, hint, value, onChangeText,
 }: {
-  icon: string;
-  label: string;
-  hint?: string;
-  value: string;
-  onChangeText: (v: string) => void;
+  icon: string; label: string; hint?: string; value: string; onChangeText: (v: string) => void;
 }) {
   return (
     <View style={s.pricingCard}>
@@ -92,6 +199,7 @@ function PricingCard({
   );
 }
 
+// ─── Main Screen ───────────────────────────────────────────────────────────
 export default function AddMachineScreen() {
   const { t } = useLang();
 
@@ -110,6 +218,11 @@ export default function AddMachineScreen() {
   const [selectedLocation, setSelectedLocation] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
+  // Map picker state
+  const [mapVisible, setMapVisible] = useState(false);
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [address, setAddress] = useState("");
+
   const [form, setForm] = useState({
     name: "",
     taluka: "",
@@ -126,14 +239,9 @@ export default function AddMachineScreen() {
   });
 
   useEffect(() => {
-    if (!search) {
-      setFilteredLocations(locations);
-      return;
-    }
+    if (!search) { setFilteredLocations(locations); return; }
     const lower = search.toLowerCase();
-    setFilteredLocations(
-      locations.filter((l) => l.taluka.toLowerCase().includes(lower)),
-    );
+    setFilteredLocations(locations.filter((l) => l.taluka.toLowerCase().includes(lower)));
   }, [search, locations]);
 
   const fetchLocations = async () => {
@@ -148,10 +256,7 @@ export default function AddMachineScreen() {
       const media = await ImagePicker.requestMediaLibraryPermissionsAsync();
       const camera = await ImagePicker.requestCameraPermissionsAsync();
       if (!media.granted || !camera.granted)
-        Alert.alert(
-          t("addMachine.permissionRequired"),
-          t("addMachine.permissionMsg"),
-        );
+        Alert.alert(t("addMachine.permissionRequired"), t("addMachine.permissionMsg"));
     })();
   }, []);
 
@@ -167,10 +272,7 @@ export default function AddMachineScreen() {
       {
         text: "🖼️  Gallery",
         onPress: async () => {
-          const res = await ImagePicker.launchImageLibraryAsync({
-            allowsMultipleSelection: true,
-            quality: 0.7,
-          });
+          const res = await ImagePicker.launchImageLibraryAsync({ allowsMultipleSelection: true, quality: 0.7 });
           if (!res.canceled) setImages((p) => [...p, ...res.assets]);
         },
       },
@@ -204,12 +306,22 @@ export default function AddMachineScreen() {
     });
     setSelectedLocation(null);
     setImages([]);
+    setCoords(null);
+    setAddress("");
   };
 
   const submitMachine = async () => {
     if (loading) return;
+
+    // Validations
     if (!selectedLocation)
       return Alert.alert(t("common.error"), t("addMachine.selectLocation"));
+
+    if (!coords || !address)
+      return Alert.alert(
+        t("common.error"),
+        "Please select exact location on map before submitting."
+      );
 
     const required: [keyof typeof form, string][] = [
       ["name", t("addMachine.machineName")],
@@ -230,57 +342,55 @@ export default function AddMachineScreen() {
     try {
       setLoading(true);
       const token = await getToken();
-      const loc = await Location.getCurrentPositionAsync({});
       const data = new FormData();
+
+      // Scalar form fields
       Object.entries(form).forEach(([k, v]: any) => {
         if (!Array.isArray(v)) data.append(k, String(v));
       });
+
+      // Arrays
       data.append("machineType", JSON.stringify(form.machineType));
       data.append("crops", JSON.stringify(form.crops));
+
+      // Location
       data.append("locationId", selectedLocation._id);
-      data.append(
-        "geoLocation",
-        JSON.stringify({
-          type: "Point",
-          coordinates: [loc.coords.longitude, loc.coords.latitude],
-        }),
-      );
+
+      // Coordinates as flat strings (backend handles Point construction)
+      data.append("latitude", String(coords.latitude));
+      data.append("longitude", String(coords.longitude));
+
+      // Address from map picker
+      data.append("address", address);
+
+      // Images
       images.forEach((img, i) =>
         data.append("images", {
           uri: img.uri,
           name: `img_${Date.now()}_${i}.jpg`,
           type: "image/jpeg",
-        } as any),
+        } as any)
       );
+
       const res = await fetch(API_URL, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: data,
       });
       const result = await res.json();
-      if (!res.ok)
-        throw new Error(result.message || t("addMachine.uploadFailed"));
+      if (!res.ok) throw new Error(result.message || t("addMachine.uploadFailed"));
+
       Alert.alert(t("common.success"), t("addMachine.success"));
       resetForm();
     } catch (err: any) {
-      Alert.alert(
-        t("common.error"),
-        err.message || t("addMachine.uploadFailed"),
-      );
+      Alert.alert(t("common.error"), err.message || t("addMachine.uploadFailed"));
     } finally {
       setLoading(false);
     }
   };
 
-  const SectionHeader = ({
-    icon,
-    title,
-    subtitle,
-  }: {
-    icon: string;
-    title: string;
-    subtitle?: string;
-  }) => (
+  // ─── Sub-components ──────────────────────────────────────────────────────
+  const SectionHeader = ({ icon, title, subtitle }: { icon: string; title: string; subtitle?: string }) => (
     <View style={s.sectionHeader}>
       <View style={s.sectionIconWrap}>
         <Text style={s.sectionIcon}>{icon}</Text>
@@ -292,13 +402,7 @@ export default function AddMachineScreen() {
     </View>
   );
 
-  const FieldLabel = ({
-    label,
-    required,
-  }: {
-    label: string;
-    required?: boolean;
-  }) => (
+  const FieldLabel = ({ label, required }: { label: string; required?: boolean }) => (
     <Text style={s.label}>
       {label}
       {required && <Text style={{ color: C.accent }}> *</Text>}
@@ -314,9 +418,7 @@ export default function AddMachineScreen() {
         activeOpacity={0.75}
       >
         <Text style={s.skillChipIcon}>{USE_CASE_ICONS[value]}</Text>
-        <Text style={[s.skillChipText, active && s.skillChipTextActive]}>
-          {USE_CASE_LABELS[value]}
-        </Text>
+        <Text style={[s.skillChipText, active && s.skillChipTextActive]}>{USE_CASE_LABELS[value]}</Text>
         {active && <Text style={s.skillCheck}>✓</Text>}
       </TouchableOpacity>
     );
@@ -334,26 +436,18 @@ export default function AddMachineScreen() {
         <Text style={[s.cropName, active && s.cropNameActive]}>{name}</Text>
         {active && (
           <View style={s.cropCheckDot}>
-            <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>
-              ✓
-            </Text>
+            <Text style={{ color: "#fff", fontSize: 9, fontWeight: "800" }}>✓</Text>
           </View>
         )}
       </TouchableOpacity>
     );
   };
 
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <>
-      {loading && (
-        <View style={s.loaderOverlay}>
-          <View style={s.loaderCard}>
-            <ActivityIndicator size="large" color={C.primary} />
-            <Text style={s.loaderText}>{t("addMachine.uploading")}</Text>
-            <Text style={s.loaderSub}>{t("addMachine.dontClose")}</Text>
-          </View>
-        </View>
-      )}
+      {/* Animated upload overlay */}
+      <UploadOverlay visible={loading} />
 
       <ScrollView
         style={s.screen}
@@ -369,20 +463,18 @@ export default function AddMachineScreen() {
           <Text style={s.headerSub}>{t("addMachine.subtitle")}</Text>
         </View>
 
-        {/* Location Card */}
+        {/* ── Location Card ── */}
         <View style={s.card}>
           <SectionHeader
             icon="📍"
             title={t("addMachine.locationDetails")}
             subtitle={t("addMachine.locationSub")}
           />
+
           <FieldLabel label={t("addMachine.taluka")} required />
           <TouchableOpacity
             style={[s.dropdownBtn, selectedLocation && s.dropdownBtnFilled]}
-            onPress={() => {
-              fetchLocations();
-              setShowLocationModal(true);
-            }}
+            onPress={() => { fetchLocations(); setShowLocationModal(true); }}
             activeOpacity={0.8}
           >
             <Text style={[s.dropdownText, !form.taluka && { color: C.muted }]}>
@@ -391,26 +483,39 @@ export default function AddMachineScreen() {
             <Text style={s.dropdownChevron}>›</Text>
           </TouchableOpacity>
 
+          {/* Map picker button */}
+          <TouchableOpacity
+            style={[s.mapBtn, coords && s.mapBtnFilled]}
+            onPress={() => setMapVisible(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={s.mapBtnIcon}>📍</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.mapBtnText, coords && { color: "#fff" }]}>
+                {coords ? "Location Selected on Map" : "Select Exact Location on Map"}
+              </Text>
+              {coords ? (
+                <Text style={s.mapBtnAddr} numberOfLines={1}>{address || `${coords.latitude.toFixed(5)}, ${coords.longitude.toFixed(5)}`}</Text>
+              ) : (
+                <Text style={[s.mapBtnAddr, { color: C.muted }]}>Required *</Text>
+              )}
+            </View>
+            {coords ? (
+              <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>✓</Text>
+            ) : (
+              <Text style={{ color: C.primary, fontSize: 20, fontWeight: "300" }}>›</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Auto-filled district / state */}
           <View style={s.row}>
             <View style={{ flex: 1, marginRight: 8 }}>
               <FieldLabel label={t("addMachine.district")} />
-              <TextInput
-                style={[s.input, s.inputDisabled]}
-                value={form.district}
-                editable={false}
-                placeholder={t("addMachine.autoFilled")}
-                placeholderTextColor={C.muted}
-              />
+              <TextInput style={[s.input, s.inputDisabled]} value={form.district} editable={false} placeholder={t("addMachine.autoFilled")} placeholderTextColor={C.muted} />
             </View>
             <View style={{ flex: 1, marginLeft: 8 }}>
               <FieldLabel label={t("addMachine.state")} />
-              <TextInput
-                style={[s.input, s.inputDisabled]}
-                value={form.state}
-                editable={false}
-                placeholder={t("addMachine.autoFilled")}
-                placeholderTextColor={C.muted}
-              />
+              <TextInput style={[s.input, s.inputDisabled]} value={form.state} editable={false} placeholder={t("addMachine.autoFilled")} placeholderTextColor={C.muted} />
             </View>
           </View>
 
@@ -420,21 +525,15 @@ export default function AddMachineScreen() {
             keyboardType="number-pad"
             maxLength={6}
             value={form.pincode}
-            onChangeText={(v) =>
-              setForm({ ...form, pincode: v.replace(/[^0-9]/g, "") })
-            }
+            onChangeText={(v) => setForm({ ...form, pincode: v.replace(/[^0-9]/g, "") })}
             placeholder="e.g. 400001"
             placeholderTextColor={C.muted}
           />
         </View>
 
-        {/* Machine Details Card */}
+        {/* ── Machine Details Card ── */}
         <View style={s.card}>
-          <SectionHeader
-            icon="🚜"
-            title={t("addMachine.machineDetails")}
-            subtitle={t("addMachine.machineDetailsSub")}
-          />
+          <SectionHeader icon="🚜" title={t("addMachine.machineDetails")} subtitle={t("addMachine.machineDetailsSub")} />
           <FieldLabel label={t("addMachine.machineName")} required />
           <TextInput
             style={s.input}
@@ -453,112 +552,71 @@ export default function AddMachineScreen() {
               keyboardType="number-pad"
               maxLength={10}
               value={form.ownerPhoneno}
-              onChangeText={(v) =>
-                setForm({ ...form, ownerPhoneno: v.replace(/[^0-9]/g, "") })
-              }
+              onChangeText={(v) => setForm({ ...form, ownerPhoneno: v.replace(/[^0-9]/g, "") })}
               placeholder="9876543210"
               placeholderTextColor={C.muted}
             />
           </View>
         </View>
 
-        {/* Pricing Card */}
+        {/* ── Pricing Card ── */}
         <View style={s.card}>
-          <SectionHeader
-            icon="💰"
-            title={t("addMachine.pricing")}
-            subtitle={t("addMachine.pricingSub")}
-          />
+          <SectionHeader icon="💰" title={t("addMachine.pricing")} subtitle={t("addMachine.pricingSub")} />
           <PricingCard
             icon="📅"
             label={t("addMachine.pricePerDay")}
             hint={t("addMachine.pricePerDayHint")}
             value={form.pricePerDay}
-            onChangeText={useCallback(
-              (v: string) => setForm((f) => ({ ...f, pricePerDay: v })),
-              [],
-            )}
+            onChangeText={useCallback((v: string) => setForm((f) => ({ ...f, pricePerDay: v })), [])}
           />
           <PricingCard
             icon="🛣️"
             label={t("addMachine.deliveryCharge")}
             hint={t("addMachine.deliveryChargeHint")}
             value={form.deliveryChargePerKm}
-            onChangeText={useCallback(
-              (v: string) => setForm((f) => ({ ...f, deliveryChargePerKm: v })),
-              [],
-            )}
+            onChangeText={useCallback((v: string) => setForm((f) => ({ ...f, deliveryChargePerKm: v })), [])}
           />
           <PricingCard
             icon="🌿"
             label={t("addMachine.maxAcre")}
             hint={t("addMachine.maxAcreHint")}
             value={form.maxAcreCoverage}
-            onChangeText={useCallback(
-              (v: string) => setForm((f) => ({ ...f, maxAcreCoverage: v })),
-              [],
-            )}
+            onChangeText={useCallback((v: string) => setForm((f) => ({ ...f, maxAcreCoverage: v })), [])}
           />
         </View>
 
-        {/* Machine Type Card */}
+        {/* ── Machine Type Card ── */}
         <View style={s.card}>
-          <SectionHeader
-            icon="⚙️"
-            title={t("addMachine.machineType")}
-            subtitle={t("addMachine.machineTypeSub")}
-          />
+          <SectionHeader icon="⚙️" title={t("addMachine.machineType")} subtitle={t("addMachine.machineTypeSub")} />
           <View style={s.skillGrid}>
-            {Object.values(UseCase).map((v) => (
-              <MachineTypeChip key={v} value={v} />
-            ))}
+            {Object.values(UseCase).map((v) => <MachineTypeChip key={v} value={v} />)}
           </View>
           {form.machineType.length > 0 && (
             <View style={s.selectionPill}>
               <Text style={s.selectionPillText}>
                 {form.machineType.length}{" "}
-                {form.machineType.length > 1
-                  ? t("addMachine.typesSelected")
-                  : t("addMachine.typeSelected")}
+                {form.machineType.length > 1 ? t("addMachine.typesSelected") : t("addMachine.typeSelected")}
               </Text>
             </View>
           )}
         </View>
 
-        {/* Crops Card */}
+        {/* ── Crops Card ── */}
         <View style={s.card}>
-          <SectionHeader
-            icon="🌾"
-            title={t("addMachine.supportedCrops")}
-            subtitle={t("addMachine.supportedCropsSub")}
-          />
+          <SectionHeader icon="🌾" title={t("addMachine.supportedCrops")} subtitle={t("addMachine.supportedCropsSub")} />
           <View style={s.cropGrid}>
-            {CROPS.map((c) => (
-              <CropTile key={c} name={c} />
-            ))}
+            {CROPS.map((c) => <CropTile key={c} name={c} />)}
           </View>
         </View>
 
-        {/* Images Card */}
+        {/* ── Images Card ── */}
         <View style={s.card}>
-          <SectionHeader
-            icon="📸"
-            title={t("addMachine.photos")}
-            subtitle={t("addMachine.photosSub")}
-          />
-          <TouchableOpacity
-            style={s.uploadBtn}
-            onPress={pickImage}
-            activeOpacity={0.8}
-          >
+          <SectionHeader icon="📸" title={t("addMachine.photos")} subtitle={t("addMachine.photosSub")} />
+          <TouchableOpacity style={s.uploadBtn} onPress={pickImage} activeOpacity={0.8}>
             <Text style={s.uploadBtnIcon}>+</Text>
             <View>
-              <Text style={s.uploadBtnText}>
-                {t("addMachine.uploadPhotos")}
-              </Text>
-              <Text style={s.uploadBtnSub}>
-                {t("addMachine.uploadPhotosSub")}
-              </Text>
+              <Text style={s.uploadBtnText}>{t("addMachine.uploadPhotos")}</Text>
+              <Text style={s.uploadBtnSub}>{t("addMachine.uploadPhotosSub")}</Text>
             </View>
           </TouchableOpacity>
           {images.length > 0 && (
@@ -568,9 +626,7 @@ export default function AddMachineScreen() {
                   <Image source={{ uri: img.uri }} style={s.preview} />
                   <TouchableOpacity
                     style={s.removeImgBtn}
-                    onPress={() =>
-                      setImages((p) => p.filter((_, i) => i !== idx))
-                    }
+                    onPress={() => setImages((p) => p.filter((_, i) => i !== idx))}
                   >
                     <Text style={s.removeImgText}>✕</Text>
                   </TouchableOpacity>
@@ -579,25 +635,16 @@ export default function AddMachineScreen() {
             </View>
           )}
           <View style={s.imageCountRow}>
-            <Text
-              style={[
-                s.imageCountText,
-                images.length >= 2 && { color: "#1A7F5A" },
-              ]}
-            >
+            <Text style={[s.imageCountText, images.length >= 2 && { color: C.success }]}>
               {images.length} / 2 {t("addMachine.photosAdded")}
             </Text>
-            {images.length >= 2 && <Text style={{ color: "#1A7F5A" }}>✓</Text>}
+            {images.length >= 2 && <Text style={{ color: C.success }}>✓</Text>}
           </View>
         </View>
 
-        {/* Description Card */}
+        {/* ── Description Card ── */}
         <View style={s.card}>
-          <SectionHeader
-            icon="📝"
-            title={t("addMachine.description")}
-            subtitle={t("addMachine.descriptionSub")}
-          />
+          <SectionHeader icon="📝" title={t("addMachine.description")} subtitle={t("addMachine.descriptionSub")} />
           <TextInput
             style={s.textarea}
             multiline
@@ -611,12 +658,8 @@ export default function AddMachineScreen() {
           <Text style={s.charCount}>{form.description.length} / 500</Text>
         </View>
 
-        {/* Submit */}
-        <TouchableOpacity
-          style={s.submitBtn}
-          onPress={submitMachine}
-          activeOpacity={0.85}
-        >
+        {/* ── Submit ── */}
+        <TouchableOpacity style={s.submitBtn} onPress={submitMachine} activeOpacity={0.85}>
           <Text style={s.submitText}>{t("addMachine.register")}</Text>
           <Text style={s.submitArrow}>→</Text>
         </TouchableOpacity>
@@ -626,13 +669,20 @@ export default function AddMachineScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Location Modal */}
+      {/* ── Map Picker Modal ── */}
+      <MapPickerModal
+        visible={mapVisible}
+        onClose={() => setMapVisible(false)}
+        onConfirm={(c: { latitude: number; longitude: number }, addr: string) => {
+          setCoords(c ?? null);
+          setAddress(addr ?? "");
+          setMapVisible(false);
+        }}
+      />
+
+      {/* ── Location List Modal ── */}
       <Modal visible={showLocationModal} transparent animationType="slide">
-        <TouchableOpacity
-          style={s.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowLocationModal(false)}
-        />
+        <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setShowLocationModal(false)} />
         <View style={s.modalSheet}>
           <View style={s.modalHandle} />
           <Text style={s.modalTitle}>{t("addMachine.selectTalukaTitle")}</Text>
@@ -649,11 +699,7 @@ export default function AddMachineScreen() {
             />
             {search.length > 0 && (
               <TouchableOpacity onPress={() => setSearch("")}>
-                <Text
-                  style={{ color: C.muted, fontSize: 18, paddingHorizontal: 8 }}
-                >
-                  ×
-                </Text>
+                <Text style={{ color: C.muted, fontSize: 18, paddingHorizontal: 8 }}>×</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -671,27 +717,17 @@ export default function AddMachineScreen() {
             style={{ marginTop: 8 }}
             renderItem={({ item }) => (
               <TouchableOpacity
-                style={[
-                  s.locationRow,
-                  selectedLocation?._id === item._id && s.locationRowActive,
-                ]}
+                style={[s.locationRow, selectedLocation?._id === item._id && s.locationRowActive]}
                 onPress={() => {
                   setSelectedLocation(item);
-                  setForm({
-                    ...form,
-                    taluka: item.taluka,
-                    district: item.district,
-                    state: item.state,
-                  });
+                  setForm({ ...form, taluka: item.taluka, district: item.district, state: item.state });
                   setShowLocationModal(false);
                 }}
               >
                 <View style={s.locationDot} />
                 <View style={{ flex: 1 }}>
                   <Text style={s.locationTitle}>{item.taluka}</Text>
-                  <Text style={s.locationSub}>
-                    {item.district}, {item.state}
-                  </Text>
+                  <Text style={s.locationSub}>{item.district}, {item.state}</Text>
                 </View>
                 {selectedLocation?._id === item._id && (
                   <Text style={{ color: C.primary, fontWeight: "700" }}>✓</Text>
@@ -705,30 +741,107 @@ export default function AddMachineScreen() {
   );
 }
 
+// ─── Upload Overlay Styles ─────────────────────────────────────────────────
+const ol = StyleSheet.create({
+  overlay: {
+    position: "absolute",
+    top: 0, left: 0, right: 0, bottom: 0,
+    zIndex: 1000,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(28,25,23,0.72)",
+  },
+  sheet: {
+    backgroundColor: "#fff",
+    borderRadius: 28,
+    padding: 32,
+    marginHorizontal: 28,
+    alignItems: "center",
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.3,
+    shadowRadius: 32,
+    elevation: 20,
+  },
+  iconWrap: {
+    width: 80,
+    height: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  ring: {
+    position: "absolute",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: C.primary,
+    opacity: 0.3,
+  },
+  stageIcon: { fontSize: 38 },
+  stageLabel: {
+    fontSize: 17,
+    fontWeight: "700",
+    color: C.ink,
+    textAlign: "center",
+  },
+  stageSub: {
+    fontSize: 13,
+    color: C.muted,
+    textAlign: "center",
+    marginTop: 2,
+  },
+  progressTrack: {
+    width: "100%",
+    height: 6,
+    backgroundColor: "#EDE8E3",
+    borderRadius: 99,
+    overflow: "hidden",
+    marginTop: 4,
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: C.primary,
+    borderRadius: 99,
+  },
+  progressShimmer: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 40,
+    backgroundColor: "rgba(255,255,255,0.35)",
+    borderRadius: 99,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    height: 24,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: C.primary,
+  },
+  footerNote: {
+    fontSize: 11,
+    color: C.muted,
+    textAlign: "center",
+    lineHeight: 16,
+    marginTop: 4,
+  },
+});
+
+// ─── Screen Styles ─────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.bg },
   container: { paddingBottom: 100 },
-  loaderOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 1000,
-  },
-  loaderCard: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 28,
-    alignItems: "center",
-    gap: 10,
-    minWidth: 200,
-  },
-  loaderText: { fontSize: 16, fontWeight: "700", color: C.ink },
-  loaderSub: { fontSize: 12, color: C.muted },
   header: {
     backgroundColor: C.primary,
     paddingTop: Platform.OS === "ios" ? 56 : 40,
@@ -743,19 +856,8 @@ const s = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 12,
   },
-  headerBadgeText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 1.4,
-  },
-  headerTitle: {
-    color: "#fff",
-    fontSize: 34,
-    fontWeight: "800",
-    lineHeight: 40,
-    marginBottom: 8,
-  },
+  headerBadgeText: { color: "rgba(255,255,255,0.9)", fontSize: 10, fontWeight: "700", letterSpacing: 1.4 },
+  headerTitle: { color: "#fff", fontSize: 34, fontWeight: "800", lineHeight: 40, marginBottom: 8 },
   headerSub: { color: "rgba(255,255,255,0.7)", fontSize: 13, lineHeight: 18 },
   card: {
     backgroundColor: C.card,
@@ -769,11 +871,7 @@ const s = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 18,
-  },
+  sectionHeader: { flexDirection: "row", alignItems: "center", marginBottom: 18 },
   sectionIconWrap: {
     width: 38,
     height: 38,
@@ -812,18 +910,29 @@ const s = StyleSheet.create({
     alignItems: "center",
     marginBottom: 14,
   },
-  dropdownBtnFilled: {
-    borderColor: C.primary,
-    backgroundColor: C.primaryFaint,
-  },
+  dropdownBtnFilled: { borderColor: C.primary, backgroundColor: C.primaryFaint },
   dropdownText: { fontSize: 15, color: C.ink, fontWeight: "500" },
   dropdownChevron: { fontSize: 22, color: C.muted, marginTop: -2 },
-  phoneRow: {
+
+  // Map button
+  mapBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    marginBottom: 0,
+    gap: 12,
+    backgroundColor: C.primaryFaint,
+    borderWidth: 1.5,
+    borderColor: C.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 14,
   },
+  mapBtnFilled: { backgroundColor: C.primary },
+  mapBtnIcon: { fontSize: 22 },
+  mapBtnText: { fontSize: 14, fontWeight: "700", color: C.primary },
+  mapBtnAddr: { fontSize: 11, color: "rgba(255,255,255,0.75)", marginTop: 2 },
+
+  phoneRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 0 },
   phonePrefix: {
     backgroundColor: C.primaryFaint,
     borderWidth: 1.5,
@@ -926,12 +1035,7 @@ const s = StyleSheet.create({
   uploadBtnIcon: { fontSize: 28, fontWeight: "300", color: C.primary },
   uploadBtnText: { fontSize: 15, fontWeight: "700", color: C.primary },
   uploadBtnSub: { fontSize: 11, color: C.muted, marginTop: 1 },
-  imageGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    marginBottom: 12,
-  },
+  imageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 12 },
   imageWrapper: { position: "relative" },
   preview: { width: 88, height: 88, borderRadius: 12 },
   removeImgBtn: {
@@ -975,26 +1079,14 @@ const s = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  submitText: {
-    color: "#fff",
-    fontSize: 17,
-    fontWeight: "800",
-    letterSpacing: 0.3,
-  },
-  submitArrow: {
-    color: "#fff",
-    fontSize: 20,
-    marginLeft: 10,
-    fontWeight: "700",
-  },
+  submitText: { color: "#fff", fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
+  submitArrow: { color: "#fff", fontSize: 20, marginLeft: 10, fontWeight: "700" },
   resetBtn: { alignItems: "center", marginTop: 16, paddingVertical: 10 },
   resetText: { color: C.muted, fontSize: 13, fontWeight: "600" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)" },
   modalSheet: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 0, left: 0, right: 0,
     backgroundColor: "#fff",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -1003,20 +1095,8 @@ const s = StyleSheet.create({
     paddingBottom: 40,
     maxHeight: "80%",
   },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.border,
-    alignSelf: "center",
-    marginBottom: 18,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: C.ink,
-    marginBottom: 4,
-  },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: C.border, alignSelf: "center", marginBottom: 18 },
+  modalTitle: { fontSize: 22, fontWeight: "800", color: C.ink, marginBottom: 4 },
   modalSub: { fontSize: 13, color: C.muted, marginBottom: 16 },
   searchRow: {
     flexDirection: "row",
@@ -1040,17 +1120,8 @@ const s = StyleSheet.create({
     borderColor: "#F0EDE9",
     gap: 12,
   },
-  locationRowActive: {
-    backgroundColor: C.primaryFaint,
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  locationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: C.accent,
-  },
+  locationRowActive: { backgroundColor: C.primaryFaint, marginHorizontal: -20, paddingHorizontal: 20 },
+  locationDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: C.accent },
   locationTitle: { fontSize: 15, fontWeight: "600", color: C.ink },
   locationSub: { fontSize: 12, color: C.muted, marginTop: 2 },
 });
