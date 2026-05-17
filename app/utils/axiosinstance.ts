@@ -19,7 +19,7 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 || error.response?.status === 403) {
       console.log("Unauthorized - Logging out");
       await removeToken()
       router.replace("/login"); // redirect to login

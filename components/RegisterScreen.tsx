@@ -1,5 +1,6 @@
 import { useLang } from "@/contexts/LanguageContext";
 import { register } from "@/services/authService";
+import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -14,7 +15,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 const C = {
   bg: "#F0F7F2",
@@ -107,7 +107,7 @@ export default function RegisterScreen() {
             <View style={s.leafBadge}>
               <Text style={s.leafEmoji}>🌿</Text>
             </View>
-            <Text style={s.brandName}>agridas</Text>
+            <Text style={s.brandName}>Krishidas</Text>
           </View>
           <Text style={s.heroText}>{t("register.title")}</Text>
           <Text style={s.heroSub}>{t("register.subtitle")}</Text>

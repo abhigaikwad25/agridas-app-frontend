@@ -1,18 +1,19 @@
+import api from "@/app/utils/axiosinstance";
 import { getToken } from "@/services/authStorage";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    FlatList,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
@@ -73,24 +74,23 @@ export default function Dashboard({ apiUrlbal, apiUrl, apiUrldel, role, categori
   const submitExpense = async () => {
     if (!form.amount) return Alert.alert("Enter amount");
     try {
-      const token = await getToken();
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
+      const response = await api.post(apiUrl, {
           description: form.description,
           amount: Number(form.amount),
           role,
           type: form.type,
           expcategory: form.category,
-        }),
       });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Something went wrong!");
-      Alert.alert("Success", "Transaction added!");
-      setForm({ ...form, description: "", amount: "" });
-      setModalVisible(false);
-      fetchDashboard();
+      const data = response.data
+      if (response.status==201) {
+        Alert.alert("Success", "Transaction added!");
+        setForm({ ...form, description: "", amount: "" });
+        setModalVisible(false);
+        fetchDashboard();
+      } else {
+        Alert.alert("Failed", "failed to add Transaction!");
+      }
+
     } catch (err: any) {
       Alert.alert("Error", err.message);
     }

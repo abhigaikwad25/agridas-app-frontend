@@ -6,17 +6,17 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    FlatList,
-    Image,
-    Platform,
-    SafeAreaView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  FlatList,
+  Image,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../utils/axiosinstance";
 const { width } = Dimensions.get("window");
@@ -237,7 +237,7 @@ export default function OwnerLaborProvidersScreen() {
       {/* ── Header ── */}
       <View style={s.header}>
         <View style={s.headerBadge}>
-          <Text style={s.headerBadgeText}>AGRIDAS • SELLER</Text>
+          <Text style={s.headerBadgeText}>Krishidas • SELLER</Text>
         </View>
         <Text style={s.headerTitle}>Your Listings</Text>
         <Text style={s.headerSub}>Manage, update or remove your labor provider listings</Text>

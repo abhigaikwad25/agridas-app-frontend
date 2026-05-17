@@ -198,7 +198,7 @@ export default function SearchLabourScreen() {
       {/* ── Hero Header ── */}
       <View style={s.hero}>
         <View style={s.heroBadge}>
-          <Text style={s.heroBadgeText}>AGRIDAS • BUYER</Text>
+          <Text style={s.heroBadgeText}>Krishidas • BUYER</Text>
         </View>
         <Text style={s.heroTitle}>Find Labor{"\n"}Providers</Text>
         <Text style={s.heroSub}>Trusted farm workers near your location 👨‍🌾</Text>

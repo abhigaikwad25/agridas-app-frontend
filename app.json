@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "AgriDas",
+    "name": "Krishidas",
     "slug": "agriconnect-native",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -55,7 +55,7 @@
   [
     "expo-location",
     {
-      "locationWhenInUsePermission": "Allow Agridas to access your location to show nearby machines and labor."
+      "locationWhenInUsePermission": "Allow Krishidas to access your location to show nearby machines and labor."
     }
   ]
 ],

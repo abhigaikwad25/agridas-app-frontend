@@ -1,6 +1,6 @@
 {
     "common": {
-        "appName": "Agridas",
+        "appName": "Krishidas",
         "logout": "Logout",
         "save": "Save",
         "cancel": "Cancel",
@@ -45,7 +45,7 @@
         "accountCreated": "Account Created! 🎉",
         "registrationFailed": "Registration Failed",
         "serverError": "Could not reach the server. Try again.",
-        "welcomeMsg": "Welcome to Agridas!",
+        "welcomeMsg": "Welcome to Krishidas!",
         "tryAgain": "Please try again.",
         "roleFarmer": "Farmer / Buyer",
         "roleFarmerDesc": "Rent machines or hire labour",
@@ -57,7 +57,7 @@
     "home": {
         "welcomeBack": "Welcome Back 👋",
         "subtitle": "Rent tools or find labour near you easily",
-        "badge": "AGRIDAS • BUYER",
+        "badge": "Krishidas • BUYER",
         "exploreNow": "Explore Now",
         "whatToDo": "What would you like to do?",
         "machinesNearby": "Machines\nNearby",
@@ -69,10 +69,10 @@
         "hireLabourDesc": "Find skilled workers for your farm",
         "myBookings": "My Bookings",
         "myBookingsDesc": "Track your current and past bookings",
-        "infoText": "AgriDas helps farmers save time and reduce costs by connecting them with nearby resources."
+        "infoText": "Krishidas helps farmers save time and reduce costs by connecting them with nearby resources."
     },
     "profile": {
-        "agriUser": "AgriDas User",
+        "agriUser": "Krishidas User",
         "switchMachine": "Switch to Machine Seller Mode",
         "switchLabour": "Switch to Labor Provider Mode",
         "expenses": "My Expenses & Earnings",
@@ -87,7 +87,7 @@
         "close": "Close"
     },
     "rentMachine": {
-        "badge": "AGRIDAS • BUYER",
+        "badge": "Krishidas • BUYER",
         "title": "Rent Farming\nMachines",
         "subtitle": "Select a category to find machines near you",
         "locationDetected": "Location detected",
@@ -98,7 +98,7 @@
         "logistics": "Logistics"
     },
     "machines": {
-        "badge": "AGRIDAS • BUYER",
+        "badge": "Krishidas • BUYER",
         "title": "Available Machines",
         "searchPlaceholder": "Search by name or location…",
         "machinesFound": "machines found",
@@ -126,7 +126,7 @@
         "bookNow": "Book Now"
     },
     "searchLabour": {
-        "badge": "AGRIDAS • BUYER",
+        "badge": "Krishidas • BUYER",
         "title": "Find Skilled\nLabour",
         "subtitle": "Trusted farm workers near your location 👨‍🌾",
         "workers": "Workers",
@@ -152,7 +152,7 @@
         "noResults": "No results found"
     },
     "sellerHome": {
-        "badge": "AGRIDAS • SELLER PORTAL",
+        "badge": "Krishidas • SELLER PORTAL",
         "title": "Welcome\nBack 👋",
         "subtitle": "Turn your machines into a steady income stream",
         "machinesListed": "Machines Listed",
@@ -161,7 +161,7 @@
         "topEarners": "Top earners make ₹40,000+ per season",
         "taglineTitle": "Don't let your machines stay idle",
         "taglineSub": "Rent them to nearby farmers and earn consistently — no middlemen, no hassle.",
-        "whySellers": "Why sellers choose Agridas",
+        "whySellers": "Why sellers choose Krishidas",
         "ctaTitle": "Ready to start earning?",
         "ctaSub": "Add your first machine in under 2 minutes.",
         "backToBuyer": "Back to Buyer Home",
@@ -236,7 +236,7 @@
         "drone": "Drone"
     },
     "bookings": {
-        "badge": "AGRIDAS • SELLER",
+        "badge": "Krishidas • SELLER",
         "title": "Bookings\nReceived",
         "subtitle": "Manage all your machine booking requests",
         "requests": "Requests",
@@ -252,7 +252,7 @@
         "noBookings": "Nothing here yet — check back soon."
     },
     "ownerMachines": {
-        "badge": "AGRIDAS • SELLER",
+        "badge": "Krishidas • SELLER",
         "title": "Your Machines",
         "subtitle": "Manage, update or remove your listings",
         "listed": "Listed",
@@ -275,7 +275,7 @@
         "machineProvider": "Machine Provider Dashboard"
     },
     "labourHome": {
-        "badge": "AGRIDAS • LABOUR PORTAL",
+        "badge": "Krishidas • LABOUR PORTAL",
         "title": "Welcome\nBack 👋",
         "subtitle": "Find work nearby and earn consistently every season",
         "workersRegistered": "Workers Registered",
@@ -284,7 +284,7 @@
         "topEarners": "Workers earn ₹800–₹1500 per day",
         "taglineTitle": "Your skills deserve daily income",
         "taglineSub": "Offer your labour services to nearby farmers and get paid fairly for your hard work — no waiting, no hassle.",
-        "whyWorkers": "Why workers choose Agridas",
+        "whyWorkers": "Why workers choose Krishidas",
         "ctaTitle": "Ready to find work?",
         "ctaSub": "Register your labour profile in under 2 minutes.",
         "backToBuyer": "Back to Buyer Home",
@@ -344,7 +344,7 @@
         "droneOp": "Drone Op."
     },
     "labourBookings": {
-        "badge": "AGRIDAS • LABOUR",
+        "badge": "Krishidas • LABOUR",
         "title": "Bookings\nReceived",
         "subtitle": "Manage your incoming job requests",
         "requests": "Requests",
