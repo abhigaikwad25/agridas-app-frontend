@@ -120,7 +120,7 @@ function AvailabilityPicker({
     try {
       const token = await AsyncStorage.getItem("authToken");
       const res = await api.get(
-        `https://agridas-latest.onrender.com/booking/availabilyStatus/${machineId}`
+        `https://agridas-latest.onrender.com/booking/availabilyStatus/${machineId}`,
       );
       const dates: string[] = res.data?.occupiedDates ?? res.data ?? [];
       setOccupiedDates(new Set(dates));
@@ -232,10 +232,15 @@ function AvailabilityPicker({
                     bs.calCell,
                     !isOccupied && bs.calCellAvail,
                     isOccupied && bs.calCellOccupied,
-                    isToday && !isOccupied && !isSelected && bs.calCellToday,
+                    isToday &&
+                      !isOccupied &&
+                      !isSelected &&
+                      !isEnd &&
+                      !inRange &&
+                      bs.calCellToday,
                     inRange && bs.calCellRange,
-                    isEnd && bs.calCellEnd,
-                    isSelected && bs.calCellSelected, // gold — always last to win
+                    isEnd && bs.calCellSelected, // end date same yellow as start
+                    isSelected && bs.calCellSelected, // start date yellow
                   ]}
                   onPress={() => !isOccupied && onSelectDate(dateStr)}
                   activeOpacity={isOccupied ? 1 : 0.7}
@@ -249,9 +254,11 @@ function AvailabilityPicker({
                       isToday &&
                         !isOccupied &&
                         !isSelected &&
+                        !isEnd &&
+                        !inRange &&
                         bs.calCellTodayText,
-                      isEnd && bs.calCellSelectedText,
-                      isSelected && bs.calCellSelectedText, // last → always wins
+                      isEnd && bs.calCellSelectedText, // end same text style as start
+                      isSelected && bs.calCellSelectedText,
                     ]}
                   >
                     {day}
@@ -645,7 +652,7 @@ function Field({
   keyboardType = "default",
   editable = true,
   icon,
-  maxLength
+  maxLength,
 }: {
   label: string;
   value: string;
@@ -929,7 +936,7 @@ export default function BookingScreen() {
   const maxAcrePerDay: number = machine?.maxAcreCoverage ?? 1;
   const daysNeeded = Math.max(1, Math.ceil(acreNum / maxAcrePerDay));
 
-  const serviceCost = pricePerDay * daysNeeded;
+  const serviceCost = pricePerDay * acreNum;
 
   // ← THIS was the bug: distanceKm was null even after setting because
   //    it was computed before state updated. Now reads directly from state.
@@ -987,7 +994,10 @@ export default function BookingScreen() {
         resourceId: machineId,
         bookingType: "machine",
       };
-      await api.post("https://agridas-latest.onrender.com/booking/create", payload);
+      await api.post(
+        "https://agridas-latest.onrender.com/booking/create",
+        payload,
+      );
 
       Alert.alert(
         "Booking Requested! 🎉",
@@ -1365,30 +1375,40 @@ const bs = StyleSheet.create({
   // Calendar
   calCard: {
     backgroundColor: C.card,
-    borderRadius: 16,
+    borderRadius: 18,
     padding: 16,
     marginBottom: 12,
-    shadowColor: C.shadow,
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: "rgba(0,0,0,0.08)",
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#EEF2F7",
   },
+
   calHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
     marginBottom: 14,
   },
+
   calHeaderIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: C.primaryFaint,
     justifyContent: "center",
     alignItems: "center",
   },
-  calTitle: { fontSize: 14, fontWeight: "800", color: C.ink },
+
+  calTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: C.ink,
+  },
+
   calLoading: {
     flexDirection: "row",
     alignItems: "center",
@@ -1396,73 +1416,188 @@ const bs = StyleSheet.create({
     paddingVertical: 24,
     gap: 8,
   },
-  calLoadingText: { fontSize: 13, color: C.muted, fontWeight: "600" },
+
+  calLoadingText: {
+    fontSize: 13,
+    color: C.muted,
+    fontWeight: "600",
+  },
+
   calNav: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 14,
   },
+
   calNavBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: C.bg,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: "#E5E7EB",
     justifyContent: "center",
     alignItems: "center",
   },
-  calMonthLabel: { fontSize: 14, fontWeight: "800", color: C.ink },
-  calDayHeaders: { flexDirection: "row", marginBottom: 5 },
+
+  calMonthLabel: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: C.ink,
+  },
+
+  calDayHeaders: {
+    flexDirection: "row",
+    marginBottom: 8,
+  },
+
   calDayHeader: {
     flex: 1,
     textAlign: "center",
     fontSize: 11,
-    fontWeight: "600",
+    fontWeight: "700",
     color: C.muted,
   },
-  calGrid: { flexDirection: "row", flexWrap: "wrap" },
+
+  calGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+
   calCell: {
     width: "14.28%",
     aspectRatio: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 8,
-    marginVertical: 2,
+    borderRadius: 12,
+    marginVertical: 3,
     position: "relative",
   },
-  calCellText: { fontSize: 13, fontWeight: "600", color: C.ink },
-  calCellAvail: { backgroundColor: C.primaryFaint },
-  calCellAvailText: { color: C.primary },
-  calCellOccupied: { backgroundColor: C.dangerFaint },
-  calCellOccupiedText: { color: C.danger },
-  calCellToday: { backgroundColor: C.primary },
-  calCellTodayText: { color: "#fff", fontWeight: "900" },
-  calCellSelected: { backgroundColor: C.gold, borderRadius: 8 }, // golden
-  calCellEnd: { backgroundColor: "#E65100", borderRadius: 8 },
-  calCellRange: { backgroundColor: C.primaryMid, borderRadius: 4 },
-  calCellPastText: { fontSize: 13, fontWeight: "500", color: C.border },
-  calCellSelectedText: { color: "#fff", fontWeight: "800" },
+
+  calCellText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: C.ink,
+  },
+
+  // available date
+  calCellAvail: {
+    backgroundColor: "#F8FFF9",
+    borderWidth: 1,
+    borderColor: "#E3F4E8",
+  },
+
+  calCellAvailText: {
+    color: C.primary,
+  },
+
+  // booked date
+  calCellOccupied: {
+    backgroundColor: "#FDECEA",
+    borderWidth: 1,
+    borderColor: "#F7C9C7",
+  },
+
+  calCellOccupiedText: {
+    color: C.danger,
+    fontWeight: "800",
+  },
+
+  // today (subtle highlight, not too strong)
+  calCellToday: {
+    backgroundColor: "#ECFDF3",
+    borderWidth: 1.5,
+    borderColor: C.primary,
+  },
+
+  calCellTodayText: {
+    color: C.primary,
+    fontWeight: "900",
+  },
+
+  // start date + end date SAME yellow
+  calCellSelected: {
+    backgroundColor: "#FACC15",
+    borderWidth: 1,
+    borderColor: "#EAB308",
+    borderRadius: 12,
+    shadowColor: "#FACC15",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  // keep this for compatibility, but SAME as selected
+  calCellEnd: {
+    backgroundColor: "#FACC15",
+    borderWidth: 1,
+    borderColor: "#EAB308",
+    borderRadius: 12,
+    shadowColor: "#FACC15",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
+  // in-between range = light yellow
+  calCellRange: {
+    backgroundColor: "#FEF3C7",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+
+  calCellPastText: {
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#D1D5DB",
+  },
+
+  // selected text (for both start and end)
+  calCellSelectedText: {
+    color: "#FFFFFF",
+    fontWeight: "900",
+  },
+
   calDot: {
     position: "absolute",
-    bottom: 3,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    bottom: 4,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: C.danger,
   },
+
   calLegend: {
     flexDirection: "row",
     gap: 14,
-    marginTop: 12,
+    marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderColor: C.border,
+    borderColor: "#EEF2F7",
   },
-  calLegendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
-  calLegendDot: { width: 11, height: 11, borderRadius: 3, borderWidth: 1.5 },
-  calLegendText: { fontSize: 11, fontWeight: "600", color: C.muted },
+
+  calLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+
+  calLegendDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 4,
+    borderWidth: 1.5,
+  },
+
+  calLegendText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: C.muted,
+  },
 
   // Date Range
   dateRangeCard: {
