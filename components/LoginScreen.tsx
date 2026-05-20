@@ -1,4 +1,4 @@
-import { useLang } from "@/contexts/LanguageContext";
+import { useLang, type Lang } from "@/contexts/LanguageContext";
 import { login } from "@/services/authService";
 import { saveToken } from "@/services/authStorage";
 import { Ionicons } from "@expo/vector-icons";
@@ -12,6 +12,7 @@ import {
   Animated,
   Dimensions,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -36,8 +37,14 @@ const C = {
   shadow: "rgba(21,92,48,0.15)",
 };
 
+const LANGUAGES: { code: Lang; native: string; english: string }[] = [
+  { code: "en", native: "English", english: "English" },
+  { code: "mr", native: "मराठी", english: "Marathi" },
+  { code: "hi", native: "हिंदी", english: "Hindi" },
+];
+
 export default function LoginScreen() {
-  const { t } = useLang();
+  const { lang, setLang, t } = useLang();
 
   const [phoneno, setPhoneno] = useState("");
   const [password, setPassword] = useState("");
@@ -45,6 +52,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [passFocused, setPassFocused] = useState(false);
+  const [langModal, setLangModal] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -131,8 +139,21 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={s.formArea}>
-            <Text style={s.formTitle}>{t("auth.signIn")}</Text>
-            <Text style={s.formSub}>{t("auth.signInBack")}</Text>
+            <View style={s.formHeader}>
+              <View>
+                <Text style={s.formTitle}>{t("auth.signIn")}</Text>
+                <Text style={s.formSub}>{t("auth.signInBack")}</Text>
+              </View>
+              <TouchableOpacity
+                style={s.langBtn}
+                onPress={() => setLangModal(true)}
+              >
+                <Ionicons name="language-outline" size={18} color={C.white} />
+                <Text style={s.langBtnText}>
+                  {LANGUAGES.find((l) => l.code === lang)?.native}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Phone */}
             <View style={[s.fieldWrap, phoneFocused && s.fieldWrapFocused]}>
@@ -248,6 +269,62 @@ export default function LoginScreen() {
           </View>
         </Animated.View>
       </ScrollView>
+
+      {/* Language Modal */}
+      <Modal
+        visible={langModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLangModal(false)}
+      >
+        <TouchableOpacity
+          style={s.backdrop}
+          activeOpacity={1}
+          onPress={() => setLangModal(false)}
+        />
+        <View style={s.sheet}>
+          <View style={s.handle} />
+          <Text style={s.sheetTitle}>{t("language.selectLanguage")}</Text>
+          <Text style={s.sheetSub}>{t("language.selectSub")}</Text>
+
+          {LANGUAGES.map((l) => {
+            const active = lang === l.code;
+            return (
+              <TouchableOpacity
+                key={l.code}
+                style={[s.langOption, active && s.langOptionActive]}
+                onPress={() => {
+                  setLang(l.code);
+                  setLangModal(false);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[s.radio, active && s.radioActive]}>
+                  {active && <View style={s.radioInner} />}
+                </View>
+                <View style={{ flex: 1, marginLeft: 14 }}>
+                  <Text
+                    style={[s.langName, active && { color: C.primary }]}
+                  >
+                    {l.native}
+                  </Text>
+                  <Text style={s.langEnglish}>{l.english}</Text>
+                </View>
+                {active && (
+                  <Ionicons name="checkmark-circle" size={22} color={C.primary} />
+                )}
+              </TouchableOpacity>
+            );
+          })}
+
+          <TouchableOpacity
+            style={s.closeBtn}
+            onPress={() => setLangModal(false)}
+          >
+            <Text style={s.closeBtnText}>{t("language.close")}</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -312,8 +389,28 @@ const s = StyleSheet.create({
   },
   logoSub: { fontSize: 13, color: C.muted, fontWeight: "500" },
   formArea: { marginBottom: 32 },
+  formHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 28,
+  },
   formTitle: { fontSize: 26, fontWeight: "800", color: C.ink, marginBottom: 6 },
-  formSub: { fontSize: 14, color: C.muted, marginBottom: 28, lineHeight: 20 },
+  formSub: { fontSize: 14, color: C.muted, marginBottom: 0, lineHeight: 20 },
+  langBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: C.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 24,
+  },
+  langBtnText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: C.white,
+  },
   fieldWrap: {
     flexDirection: "row",
     alignItems: "center",
@@ -404,4 +501,100 @@ const s = StyleSheet.create({
     borderColor: C.border,
   },
   trustText: { fontSize: 11, fontWeight: "600", color: C.muted },
+  
+  // Language Modal Styles
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  sheet: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: C.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 28,
+    maxHeight: "80%",
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: C.border,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: C.ink,
+    marginBottom: 6,
+  },
+  sheetSub: {
+    fontSize: 13,
+    color: C.muted,
+    marginBottom: 20,
+    lineHeight: 18,
+  },
+  langOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: C.faint,
+  },
+  langOptionActive: {
+    backgroundColor: "rgba(30,127,67,0.1)",
+  },
+  radio: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: C.border,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  radioActive: {
+    borderColor: C.primary,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: C.primary,
+  },
+  langName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: C.ink,
+    marginBottom: 2,
+  },
+  langEnglish: {
+    fontSize: 12,
+    color: C.muted,
+    fontWeight: "500",
+  },
+  closeBtn: {
+    backgroundColor: C.primary,
+    borderRadius: 50,
+    paddingVertical: 14,
+    marginTop: 16,
+    alignItems: "center",
+  },
+  closeBtnText: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: C.white,
+  },
 });
