@@ -63,7 +63,7 @@ export default function HomeScreen() {
       emoji: "📦",
       titleKey: "home.myBookings",
       descKey: "home.myBookingsDesc",
-      route: "",
+      route: "/userBookings",
       bg: "#EEF2FF",
       color: "#4338CA",
     },

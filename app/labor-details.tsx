@@ -1,20 +1,18 @@
 import api from "@/app/utils/axiosinstance";
-import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Dimensions,
-  Linking,
-  Platform,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    Linking,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -84,7 +82,7 @@ export default function LaborProviderDetailsScreen() {
       const token = await AsyncStorage.getItem("authToken");
 
       const res = await api.get(
-        `https://agridas-latest.onrender.com/laborProvider/details/${machineId}`,
+        `https://krishidas.onrender.com/laborProvider/details/${machineId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 

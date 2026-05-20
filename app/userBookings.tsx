@@ -122,7 +122,6 @@ export default function UserBookingsScreen() {
         });
         result = (res.data ?? []).map(mapBooking);
       }
-      console.log(result)
       setData(result);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to fetch bookings");

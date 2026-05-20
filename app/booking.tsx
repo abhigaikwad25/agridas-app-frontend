@@ -1,4 +1,5 @@
 import api from "@/app/utils/axiosinstance";
+import MapPickerModal from "@/components/MapPickerModal";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,7 +17,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapPickerModal from "@/components/MapPickerModal";
 
 type BookingType = "machine" | "laborProvider";
 
@@ -365,7 +365,7 @@ function AvailabilityPicker({
     const fetchAvailability = async () => {
       try {
         const res = await api.get(
-          `https://agridas-latest.onrender.com/booking/availabilyStatus/${resourceId}`
+          `https://krishidas.onrender.com/booking/availabilyStatus/${resourceId}`
         );
         const bookings: { startDate: string; endDate: string }[] = res.data ?? [];
         const expanded = new Set<string>();
@@ -545,8 +545,8 @@ export default function BookingScreen() {
         const token = await AsyncStorage.getItem("authToken");
 
         const endpoint = isMachine
-          ? `https://agridas-latest.onrender.com/machine/details/${resourceId}`
-          : `https://agridas-latest.onrender.com/laborProvider/details/${resourceId}`;
+          ? `https://krishidas.onrender.com/machine/details/${resourceId}`
+          : `https://krishidas.onrender.com/laborProvider/details/${resourceId}`;
 
         const res = await api.get(endpoint, {
           headers: { Authorization: `Bearer ${token}` },
@@ -663,7 +663,7 @@ export default function BookingScreen() {
         bookingLocationId: resourceId,
       };
 
-      await api.post(`https://agridas-latest.onrender.com/booking/create`, payload);
+      await api.post(`https://krishidas.onrender.com/booking/create`, payload);
 
       Alert.alert(
         "Booking Requested!",
