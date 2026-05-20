@@ -1,4 +1,5 @@
 // app/update-machine.tsx
+import { BASE_URL } from "@/constants/api";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,7 +18,6 @@ import {
     View,
 } from "react-native";
 import api from "./utils/axiosinstance";
-const BASE_URL = "https://krishidas.onrender.com";
 
 const C = {
   bg: "#F9F5F0",

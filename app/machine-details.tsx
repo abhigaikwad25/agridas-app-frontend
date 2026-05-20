@@ -17,7 +17,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-
+import { BASE_URL } from "@/constants/api";
 const { width } = Dimensions.get("window");
 const IMAGE_HEIGHT = 320;
 
@@ -167,7 +167,7 @@ function AvailabilityCalendar({ machineId }: { machineId: string }) {
     try {
       const token = await AsyncStorage.getItem("authToken");
       const res = await api.get(
-        `https://krishidas.onrender.com/booking/availabilyStatus/${machineId}`,
+        `${BASE_URL}/booking/availabilyStatus/${machineId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       // Expecting res.data to be an array of date strings like ["2026-03-22", ...]
@@ -362,7 +362,7 @@ export default function MachineDetailsScreen() {
     try {
       const token = await AsyncStorage.getItem("authToken");
       const res = await api.get(
-        `https://krishidas.onrender.com/machine/details/${machineId}`,
+        `${BASE_URL}/machine/details/${machineId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       setMachine(res.data);

@@ -1,5 +1,6 @@
 import api from "@/app/utils/axiosinstance";
 import MapPickerModal from "@/components/MapPickerModal";
+import { BASE_URL } from "@/constants/api";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -365,7 +366,7 @@ function AvailabilityPicker({
     const fetchAvailability = async () => {
       try {
         const res = await api.get(
-          `https://krishidas.onrender.com/booking/availabilyStatus/${resourceId}`
+          `${BASE_URL}/booking/availabilyStatus/${resourceId}`
         );
         const bookings: { startDate: string; endDate: string }[] = res.data ?? [];
         const expanded = new Set<string>();
@@ -545,8 +546,8 @@ export default function BookingScreen() {
         const token = await AsyncStorage.getItem("authToken");
 
         const endpoint = isMachine
-          ? `https://krishidas.onrender.com/machine/details/${resourceId}`
-          : `https://krishidas.onrender.com/laborProvider/details/${resourceId}`;
+          ? `${BASE_URL}/machine/details/${resourceId}`
+          : `${BASE_URL}/laborProvider/details/${resourceId}`;
 
         const res = await api.get(endpoint, {
           headers: { Authorization: `Bearer ${token}` },
@@ -663,7 +664,7 @@ export default function BookingScreen() {
         bookingLocationId: resourceId,
       };
 
-      await api.post(`https://krishidas.onrender.com/booking/create`, payload);
+      await api.post(`${BASE_URL}/booking/create`, payload);
 
       Alert.alert(
         "Booking Requested!",

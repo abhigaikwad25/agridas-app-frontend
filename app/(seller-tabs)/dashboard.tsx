@@ -1,4 +1,5 @@
 import DashboardForm from "@/components/dashboardform";
+import { BASE_URL } from "@/constants/api";
 import { useLang } from "@/contexts/LanguageContext";
 
 export default function DashboardScreen() {
@@ -6,9 +7,9 @@ export default function DashboardScreen() {
 
   return (
     <DashboardForm
-      apiUrlbal="https://krishidas.onrender.com/machine/expense"
-      apiUrl="https://krishidas.onrender.com/machine/create/expense"
-      apiUrldel="https://krishidas.onrender.com/machine/delete/expense"
+      apiUrlbal={`${BASE_URL}/machine/expense`}
+      apiUrl={`${BASE_URL}/machine/create/expense`}
+      apiUrldel={`${BASE_URL}/machine/delete/expense`}
       role="mprovider"
       categories={["maintenance", "loan", "salary", "other"]}
       title={t("dashboard.machineProvider")}

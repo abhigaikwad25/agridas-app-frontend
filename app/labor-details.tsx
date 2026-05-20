@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
+import { BASE_URL } from "@/constants/api";
 import {
     ActivityIndicator,
     Dimensions,
@@ -82,7 +83,7 @@ export default function LaborProviderDetailsScreen() {
       const token = await AsyncStorage.getItem("authToken");
 
       const res = await api.get(
-        `https://krishidas.onrender.com/laborProvider/details/${machineId}`,
+        `${BASE_URL}/laborProvider/details/${machineId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
