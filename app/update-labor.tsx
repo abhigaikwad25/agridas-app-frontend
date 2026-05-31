@@ -132,7 +132,7 @@ export default function UpdateLaborProviderScreen() {
         setLocations(locs);
         setFilteredLocations(locs);
       } catch (err: any) {
-        Alert.alert("Error", "Failed to load labor provider data");
+        Alert.alert("Error", "Failed to load labour provider data");
       } finally {
         setFetching(false);
       }
@@ -178,7 +178,7 @@ export default function UpdateLaborProviderScreen() {
         },
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );
-      Alert.alert("Updated!", "Labor provider listing saved successfully ✅", [
+      Alert.alert("Updated!", "Labour provider listing saved successfully ✅", [
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (err: any) {

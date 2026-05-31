@@ -117,7 +117,7 @@ export default function LaborProviderDetailsScreen() {
 
       {/* HERO */}
       <View style={s.hero}>
-        <Text style={s.heroTitle}>Labor Provider</Text>
+        <Text style={s.heroTitle}>Labour Provider</Text>
         <Text style={s.heroSub}>
           {provider.isActive ? "Available Now" : "Currently Busy"}
         </Text>
@@ -131,7 +131,7 @@ export default function LaborProviderDetailsScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         {/* TITLE */}
         <View style={s.card}>
-          <Text style={s.title}>Labor Service Provider</Text>
+          <Text style={s.title}>Labour Service Provider</Text>
          <Text style={s.location}>
   {`${provider.taluka}, ${provider.district}, ${provider.state}`}
 </Text>

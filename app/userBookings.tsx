@@ -1,6 +1,6 @@
 import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -68,17 +68,20 @@ const mapBooking = (item: any) => ({
   endOtp: item.endOtp,
 });
 
+// Per-status cursor: tracks lastResource _id and remainingBookings independently
+// for each status string so merged tabs (ongoing/history) don't bleed cursors.
+type StatusCursor = { lastResource: string | null; remaining: number };
+const emptyCursors = (): Record<string, StatusCursor> => ({});
+
 export default function UserBookingsScreen() {
   const { t } = useLang();
   const [tab, setTab] = useState<TabKey>("requested");
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  // cursors keyed by status string e.g. "completed", "cancelled", "accepted", "started", "requested", "rejected"
+  const [cursors, setCursors] = useState<Record<string, StatusCursor>>(emptyCursors());
   const [error, setError] = useState<string | null>(null);
-
-  // Use a ref to always have the latest skip value inside the scroll handler
-  const skipRef = useRef(0);
 
   const TABS: { key: TabKey; label: string; icon: string }[] = [
     { key: "requested", label: "Requested", icon: "time-outline" },
@@ -89,71 +92,67 @@ export default function UserBookingsScreen() {
 
   const activeTab = TABS.find((tb) => tb.key === tab)!;
 
+  // Returns the statuses that belong to this tab
+  const tabStatuses = (t: TabKey): string[] => {
+    if (t === "history") return ["completed", "cancelled"];
+    if (t === "ongoing") return ["accepted", "started"];
+    return [TAB_STATUS_MAP[t]];
+  };
+
+  // Total remaining across all statuses for the current tab
+  const totalRemaining = (currentCursors: Record<string, StatusCursor>, currentTab: TabKey) =>
+    tabStatuses(currentTab).reduce(
+      (sum, s) => sum + (currentCursors[s]?.remaining ?? 0),
+      0
+    );
+
+  // ─── Fetch a single status with its own cursor ───────────────────────────
+  const fetchOneStatus = async (
+    status: string,
+    cursor: StatusCursor | undefined
+  ): Promise<{ bookings: any[]; newCursor: StatusCursor }> => {
+    const params: Record<string, any> = { status, limit: LIMIT };
+    if (cursor?.lastResource) params.lastResource = cursor.lastResource;
+
+    const res = await api.get("/booking/requested/user", { params });
+    const bookings: any[] = (res.data?.bookings ?? res.data ?? []).map(mapBooking);
+    const remaining: number = res.data?.remainingBookings ?? 0;
+    const lastResource =
+      bookings.length > 0 ? bookings[bookings.length - 1]._id : (cursor?.lastResource ?? null);
+
+    return { bookings, newCursor: { lastResource, remaining } };
+  };
+
   // ─── Pagination-aware fetch ───────────────────────────────────────────────
-  const fetchBookings = async (currentTab: TabKey, currentSkip: number) => {
-    // First page → full loader; subsequent pages → bottom spinner
-    if (currentSkip === 0) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
+  const fetchBookings = async (
+    currentTab: TabKey,
+    currentCursors: Record<string, StatusCursor>,
+    isLoadMore = false
+  ) => {
+    if (isLoadMore) setLoadingMore(true);
+    else setLoading(true);
     setError(null);
 
     try {
-      let result: any[] = [];
+      const statuses = tabStatuses(currentTab);
+      const results = await Promise.all(
+        statuses.map((s) => fetchOneStatus(s, currentCursors[s]))
+      );
 
-      if (currentTab === "history") {
-        const [completedRes, cancelledRes] = await Promise.all([
-          api.get("/booking/requested/user", {
-            params: { status: "completed", skip: currentSkip, limit: LIMIT },
-          }),
-          api.get("/booking/requested/user", {
-            params: { status: "cancelled", skip: currentSkip, limit: LIMIT },
-          }),
-        ]);
-        result = [
-          ...(completedRes.data ?? []),
-          ...(cancelledRes.data ?? []),
-        ].map(mapBooking);
-      } else if (currentTab === "ongoing") {
-        const [acceptedRes, startedRes] = await Promise.all([
-          api.get("/booking/requested/user", {
-            params: { status: "accepted", skip: currentSkip, limit: LIMIT },
-          }),
-          api.get("/booking/requested/user", {
-            params: { status: "started", skip: currentSkip, limit: LIMIT },
-          }),
-        ]);
-        result = [
-          ...(acceptedRes.data ?? []),
-          ...(startedRes.data ?? []),
-        ].map(mapBooking);
+      // Merge new cursors into state
+      const updatedCursors = { ...currentCursors };
+      results.forEach((r, i) => {
+        updatedCursors[statuses[i]] = r.newCursor;
+      });
+      setCursors(updatedCursors);
+
+      const newBookings = results.flatMap((r) => r.bookings);
+
+      if (isLoadMore) {
+        setData((prev) => [...prev, ...newBookings]);
       } else {
-        const res = await api.get("/booking/requested/user", {
-          params: {
-            status: TAB_STATUS_MAP[currentTab],
-            skip: currentSkip,
-            limit: LIMIT,
-          },
-        });
-        result = (res.data ?? []).map(mapBooking);
+        setData(newBookings);
       }
-
-      // Append on load-more, replace on fresh fetch
-      if (currentSkip === 0) {
-        setData(result);
-      } else {
-        setData((prev) => [...prev, ...result]);
-      }
-
-      // For merged tabs (ongoing / history) each sub-call returns up to LIMIT,
-      // so if the combined result is 0 there's nothing more to load.
-      // For single-status tabs, fewer than LIMIT means last page.
-      const isMergedTab = currentTab === "ongoing" || currentTab === "history";
-      setHasMore(isMergedTab ? result.length > 0 : result.length === LIMIT);
-
-      // Keep ref in sync
-      skipRef.current = currentSkip;
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to fetch bookings");
     } finally {
@@ -164,44 +163,30 @@ export default function UserBookingsScreen() {
 
   // ─── Tab switching ────────────────────────────────────────────────────────
   const handleTabChange = (newTab: TabKey) => {
-    // FIX: If the user taps the already-active tab, just re-fetch from scratch
-    // instead of clearing data with no follow-up fetch.
-    if (newTab === tab) {
-      skipRef.current = 0;
-      setHasMore(true);
-      setData([]);
-      setError(null);
-      fetchBookings(newTab, 0);
-      return;
-    }
-
-    // Switching to a different tab
-    skipRef.current = 0;
-    setHasMore(true);
+    const freshCursors = emptyCursors();
     setData([]);
     setError(null);
+    setCursors(freshCursors);
     setLoadingMore(false);
-    setTab(newTab); // triggers the useEffect below
+
+    if (newTab === tab) {
+      fetchBookings(newTab, freshCursors, false);
+      return;
+    }
+    setTab(newTab); // triggers useEffect
   };
 
   useEffect(() => {
-    skipRef.current = 0;
-    setHasMore(true);
-    fetchBookings(tab, 0);
+    const freshCursors = emptyCursors();
+    setCursors(freshCursors);
+    fetchBookings(tab, freshCursors, false);
   }, [tab]);
 
-  // ─── Infinite scroll ──────────────────────────────────────────────────────
-  const handleScroll = (event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 80;
-    const isCloseToBottom =
-      layoutMeasurement.height + contentOffset.y >=
-      contentSize.height - paddingToBottom;
-
-    if (isCloseToBottom && !loading && !loadingMore && hasMore) {
-      const nextSkip = skipRef.current + LIMIT;
-      fetchBookings(tab, nextSkip);
-    }
+  // ─── Load more handler ────────────────────────────────────────────────────
+  const handleLoadMore = () => {
+    const remaining = totalRemaining(cursors, tab);
+    if (loadingMore || remaining <= 0 || data.length < LIMIT) return;
+    fetchBookings(tab, cursors, true);
   };
 
   // ─── Sub-components ───────────────────────────────────────────────────────
@@ -540,6 +525,11 @@ export default function UserBookingsScreen() {
   }
 
   // ─── Render ───────────────────────────────────────────────────────────────
+  // Show "Load More" button only when:
+  // 1. There are remaining bookings from the server (remainingBookings > 0)
+  // 2. We already have at least LIMIT items loaded (data.length >= LIMIT)
+  const showLoadMore = totalRemaining(cursors, tab) > 0 && data.length >= LIMIT;
+
   const renderCards = () => {
     if (loading) {
       return (
@@ -557,7 +547,7 @@ export default function UserBookingsScreen() {
           <Text style={s.emptyTitle}>Something went wrong</Text>
           <Text style={s.emptyText}>{error}</Text>
           <TouchableOpacity
-            onPress={() => fetchBookings(tab, 0)}
+            onPress={() => fetchBookings(tab, emptyCursors(), false)}
             style={s.retryBtn}
           >
             <Text style={s.retryText}>Retry</Text>
@@ -584,7 +574,7 @@ export default function UserBookingsScreen() {
               <RequestedCard
                 key={item._id}
                 item={item}
-                onAction={() => fetchBookings(tab, 0)}
+                onAction={() => fetchBookings(tab, emptyCursors(), false)}
               />
             );
           if (tab === "ongoing")
@@ -596,16 +586,33 @@ export default function UserBookingsScreen() {
           return null;
         })}
 
-        {/* Bottom load-more spinner */}
-        {loadingMore && (
-          <View style={s.loadMoreBox}>
-            <ActivityIndicator color={C.primary} size="small" />
-            <Text style={s.loadingText}>Loading more...</Text>
-          </View>
+        {/* Load More button — only shown when more exist and current count >= LIMIT */}
+        {showLoadMore && (
+          <TouchableOpacity
+            style={[s.loadMoreBtn, loadingMore && { opacity: 0.7 }]}
+            onPress={handleLoadMore}
+            disabled={loadingMore}
+            activeOpacity={0.8}
+          >
+            {loadingMore ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={s.loadMoreText}>Loading...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="chevron-down-circle-outline" size={17} color="#fff" />
+                <Text style={s.loadMoreText}>
+                  Load More
+                  <Text style={s.loadMoreCount}> ({totalRemaining(cursors, tab)} remaining)</Text>
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
         )}
 
         {/* End-of-list indicator */}
-        {!hasMore && data.length > 0 && (
+        {!showLoadMore && data.length > 0 && (
           <View style={s.endBox}>
             <Text style={s.endText}>You've seen all bookings</Text>
           </View>
@@ -619,8 +626,6 @@ export default function UserBookingsScreen() {
       style={s.screen}
       contentContainerStyle={s.container}
       showsVerticalScrollIndicator={false}
-      onScroll={handleScroll}
-      scrollEventThrottle={400}
     >
       <View style={s.header}>
         <View style={s.headerBadge}>
@@ -892,12 +897,32 @@ const s = StyleSheet.create({
   centerBox: { alignItems: "center", paddingVertical: 48, gap: 12 },
   loadingText: { fontSize: 13, color: "#6b7280" },
 
-  loadMoreBox: {
-    alignItems: "center",
-    paddingVertical: 20,
-    gap: 8,
+  loadMoreBtn: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#1e7f43",
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 4,
+    shadowColor: "#1e7f43",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#fff",
+  },
+
+  loadMoreCount: {
+    fontSize: 12,
+    fontWeight: "500",
+    color: "rgba(255,255,255,0.75)",
   },
 
   endBox: {

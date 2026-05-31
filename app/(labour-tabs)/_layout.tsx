@@ -26,7 +26,7 @@ export default function LabourTabLayout() {
       <Tabs.Screen
         name="add-labor"
         options={{
-          title: "Add Labor",
+          title: "Add Labour",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-add-outline" size={size} color={color} />
           ),

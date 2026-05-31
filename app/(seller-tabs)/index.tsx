@@ -66,9 +66,10 @@ export default function SellerHome() {
 
         <View style={s.statsStrip}>
           {[
-            { num: "1200+", labelKey: "sellerHome.machinesListed" },
-            { num: "8400+", labelKey: "sellerHome.bookingsMade" },
-            { num: "340+", labelKey: "sellerHome.sellersEarning" },
+            // { num: "1200+", labelKey: "sellerHome.machinesListed" },
+            // { num: "8400+", labelKey: "sellerHome.bookingsMade" },
+            { num: "High", labelKey: "sellerHome.sellersEarning" },
+            { num: "300+", labelKey: "labourHome.villagesCovered" },
           ].map((st, i) => (
             <View key={i} style={{ flex: 1, flexDirection: "row" }}>
               {i > 0 && <View style={s.statDivider} />}

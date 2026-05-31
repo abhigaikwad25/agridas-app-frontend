@@ -2,14 +2,14 @@ import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import api from "../utils/axiosinstance";
 
@@ -37,10 +37,16 @@ const C = {
 
 type TabKey = "requested" | "ongoing" | "rejected" | "history";
 
-const TAB_STATUS_MAP: Record<TabKey, string | string[]> = {
-  requested: "requested",
-  ongoing: "accepted",
-  rejected: "rejected",
+const LIMIT = 10;
+
+// ─── Per-status cursor ────────────────────────────────────────────────────────
+type StatusCursor = { lastResource: string | null; remaining: number };
+const emptyCursors = (): Record<string, StatusCursor> => ({});
+
+const TAB_STATUSES: Record<TabKey, string[]> = {
+  requested: ["requested"],
+  ongoing: ["accepted", "started"],
+  rejected: ["rejected"],
   history: ["completed", "cancelled"],
 };
 
@@ -70,6 +76,8 @@ export default function LabourBookingsScreen() {
   const [tab, setTab] = useState<TabKey>("requested");
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [cursors, setCursors] = useState<Record<string, StatusCursor>>(emptyCursors());
   const [error, setError] = useState<string | null>(null);
 
   const TABS: { key: TabKey; label: string; icon: string }[] = [
@@ -81,45 +89,100 @@ export default function LabourBookingsScreen() {
 
   const activeTab = TABS.find((tb) => tb.key === tab)!;
 
-  const handleTabChange = (newTab: TabKey) => {
-    setData([]);
-    setError(null);
-    setLoading(false);
-    setTab(newTab);
+  const totalRemaining = (currentCursors: Record<string, StatusCursor>, currentTab: TabKey) =>
+    TAB_STATUSES[currentTab].reduce(
+      (sum, s) => sum + (currentCursors[s]?.remaining ?? 0),
+      0
+    );
+
+  // ─── Fetch a single status with its own cursor ──────────────────────────
+  const fetchOneStatus = async (
+    status: string,
+    cursor: StatusCursor | undefined
+  ): Promise<{ bookings: any[]; newCursor: StatusCursor }> => {
+    const params: Record<string, any> = {
+      status,
+      bookingType: "laborProvider",
+      limit: LIMIT,
+    };
+    if (cursor?.lastResource) params.lastResource = cursor.lastResource;
+
+    const res = await api.get("/booking/received/owner", { params });
+    const bookings: any[] = (res.data?.bookings ?? res.data ?? []).map(mapBooking);
+    const remaining: number = res.data?.remainingBookings ?? 0;
+    const lastResource =
+      bookings.length > 0
+        ? bookings[bookings.length - 1]._id
+        : (cursor?.lastResource ?? null);
+
+    return { bookings, newCursor: { lastResource, remaining } };
   };
 
-  const fetchBookings = async (currentTab: TabKey) => {
-    setLoading(true);
+  // ─── Pagination-aware fetch ─────────────────────────────────────────────
+  const fetchBookings = async (
+    currentTab: TabKey,
+    currentCursors: Record<string, StatusCursor>,
+    isLoadMore = false
+  ) => {
+    if (isLoadMore) setLoadingMore(true);
+    else setLoading(true);
     setError(null);
+
     try {
-      let result: any[] = [];
-      if (currentTab === "history") {
-        const [completedRes, cancelledRes] = await Promise.all([
-          api.get("/booking/received/owner", { params: { status: "completed", bookingType: "laborProvider" } }),
-          api.get("/booking/received/owner", { params: { status: "cancelled", bookingType: "laborProvider" } }),
-        ]);
-        result = [
-          ...(completedRes.data ?? []),
-          ...(cancelledRes.data ?? []),
-        ].map(mapBooking);
+      const statuses = TAB_STATUSES[currentTab];
+      const results = await Promise.all(
+        statuses.map((s) => fetchOneStatus(s, currentCursors[s]))
+      );
+
+      const updatedCursors = { ...currentCursors };
+      results.forEach((r, i) => {
+        updatedCursors[statuses[i]] = r.newCursor;
+      });
+      setCursors(updatedCursors);
+
+      const newBookings = results.flatMap((r) => r.bookings);
+      if (isLoadMore) {
+        setData((prev) => [...prev, ...newBookings]);
       } else {
-        const res = await api.get("/booking/received/owner", {
-          params: { status: TAB_STATUS_MAP[currentTab], bookingType: "laborProvider" },
-        });
-        result = (res.data ?? []).map(mapBooking);
+        setData(newBookings);
       }
-      setData(result);
     } catch (err: any) {
       setError(err?.response?.data?.message || "Failed to fetch bookings");
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
+  // ─── Tab switching ──────────────────────────────────────────────────────
+  const handleTabChange = (newTab: TabKey) => {
+    const fresh = emptyCursors();
+    setData([]);
+    setError(null);
+    setCursors(fresh);
+    setLoadingMore(false);
+    if (newTab === tab) {
+      fetchBookings(newTab, fresh, false);
+      return;
+    }
+    setTab(newTab);
+  };
+
   useEffect(() => {
-    fetchBookings(tab);
+    const fresh = emptyCursors();
+    setCursors(fresh);
+    fetchBookings(tab, fresh, false);
   }, [tab]);
 
+  // ─── Load more ──────────────────────────────────────────────────────────
+  const handleLoadMore = () => {
+    if (loadingMore || totalRemaining(cursors, tab) <= 0 || data.length < LIMIT) return;
+    fetchBookings(tab, cursors, true);
+  };
+
+  const showLoadMore = totalRemaining(cursors, tab) > 0 && data.length >= LIMIT;
+
+  // ─── Sub-components ─────────────────────────────────────────────────────
   function MetaRow({ date, endDate, acres }: { date: string; endDate?: string; acres: number }) {
     return (
       <View style={s.bookingMeta}>
@@ -138,26 +201,23 @@ export default function LabourBookingsScreen() {
   function RequestCard({ item, onAction }: { item: any; onAction: () => void }) {
     const [actionLoading, setActionLoading] = useState(false);
 
-const handleAccept = async () => {
-  setActionLoading(true);
-  try {
-    const res = await api.patch(`/booking/${item._id}/accept`, {
-      startDate: item.startDate,  
-      endDate: item.endDate,
-    });
-    console.log(res)
-    onAction();
-  } catch (err: any) {
-    const message =
-      err?.response?.data?.message ||
-      err?.response?.data?.error ||
-      err?.message ||
-      "Failed to accept booking";
-    Alert.alert("Error", message);
-  } finally {
-    setActionLoading(false);
-  }
-};
+    const handleAccept = async () => {
+      setActionLoading(true);
+      try {
+        await api.patch(`/booking/${item._id}/accept`, {
+          startDate: item.startDate,
+          endDate: item.endDate,
+        });
+        onAction();
+      } catch (err: any) {
+        Alert.alert(
+          "Error",
+          err?.response?.data?.message || err?.response?.data?.error || err?.message || "Failed to accept booking"
+        );
+      } finally {
+        setActionLoading(false);
+      }
+    };
 
     const handleDecline = async () => {
       Alert.alert("Decline Booking", "Are you sure you want to decline?", [
@@ -171,12 +231,10 @@ const handleAccept = async () => {
               await api.patch(`/booking/${item._id}/reject`);
               onAction();
             } catch (err: any) {
-              const message =
-                err?.response?.data?.message ||
-                err?.response?.data?.error ||
-                err?.message ||
-                "Failed to decline booking";
-              Alert.alert("Error", message);
+              Alert.alert(
+                "Error",
+                err?.response?.data?.message || err?.response?.data?.error || err?.message || "Failed to decline booking"
+              );
             } finally {
               setActionLoading(false);
             }
@@ -350,6 +408,7 @@ const handleAccept = async () => {
     );
   }
 
+  // ─── Render ──────────────────────────────────────────────────────────────
   const renderCards = () => {
     if (loading) {
       return (
@@ -365,7 +424,7 @@ const handleAccept = async () => {
           <Text style={s.emptyIcon}>⚠️</Text>
           <Text style={s.emptyTitle}>Something went wrong</Text>
           <Text style={s.emptyText}>{error}</Text>
-          <TouchableOpacity onPress={() => fetchBookings(tab)} style={s.retryBtn}>
+          <TouchableOpacity onPress={() => fetchBookings(tab, emptyCursors(), false)} style={s.retryBtn}>
             <Text style={s.retryText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -380,13 +439,47 @@ const handleAccept = async () => {
         </View>
       );
     }
-    return data.map((item) => {
-      if (tab === "requested") return <RequestCard key={item._id} item={item} onAction={() => fetchBookings(tab)} />;
-      if (tab === "ongoing") return <OngoingCard key={item._id} item={item} />;
-      if (tab === "rejected") return <RejectedCard key={item._id} item={item} />;
-      if (tab === "history") return <HistoryCard key={item._id} item={item} />;
-      return null;
-    });
+    return (
+      <>
+        {data.map((item) => {
+          if (tab === "requested") return <RequestCard key={item._id} item={item} onAction={() => fetchBookings(tab, emptyCursors(), false)} />;
+          if (tab === "ongoing") return <OngoingCard key={item._id} item={item} />;
+          if (tab === "rejected") return <RejectedCard key={item._id} item={item} />;
+          if (tab === "history") return <HistoryCard key={item._id} item={item} />;
+          return null;
+        })}
+
+        {showLoadMore && (
+          <TouchableOpacity
+            style={[s.loadMoreBtn, loadingMore && { opacity: 0.7 }]}
+            onPress={handleLoadMore}
+            disabled={loadingMore}
+            activeOpacity={0.8}
+          >
+            {loadingMore ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={s.loadMoreText}>Loading...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="chevron-down-circle-outline" size={17} color="#fff" />
+                <Text style={s.loadMoreText}>
+                  Load More{" "}
+                  <Text style={s.loadMoreCount}>({totalRemaining(cursors, tab)} remaining)</Text>
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {!showLoadMore && data.length > 0 && (
+          <View style={s.endBox}>
+            <Text style={s.endText}>You've seen all bookings</Text>
+          </View>
+        )}
+      </>
+    );
   };
 
   return (
@@ -474,27 +567,13 @@ const s = StyleSheet.create({
   cardAccent: { width: 4, backgroundColor: C.primary },
   cardInner: { flex: 1, padding: 16 },
   bookingTop: { flexDirection: "row", alignItems: "center", marginBottom: 12 },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: C.primaryFaint,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  avatarCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: C.primaryFaint, justifyContent: "center", alignItems: "center" },
   avatarText: { fontSize: 17, fontWeight: "800", color: C.primary },
   farmerName: { fontSize: 15, fontWeight: "800", color: C.ink },
   machineName: { fontSize: 12, color: C.muted, marginTop: 2 },
   amountBadge: { backgroundColor: C.accentLight, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
   amountText: { fontSize: 13, fontWeight: "800", color: C.accent },
-  statusPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
+  statusPill: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: 20 },
   statusText: { fontSize: 11, fontWeight: "700" },
   bookingMeta: { flexDirection: "row", gap: 14, marginBottom: 12, flexWrap: "wrap" },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
@@ -534,6 +613,27 @@ const s = StyleSheet.create({
   amountRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   amountRowLabel: { flex: 1, fontSize: 12, color: C.muted, fontWeight: "600" },
   amountRowValue: { fontSize: 15, fontWeight: "900", color: C.ink },
+
+  loadMoreBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: C.primary,
+    paddingVertical: 14,
+    borderRadius: 14,
+    marginTop: 4,
+    shadowColor: C.shadow,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  loadMoreText: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  loadMoreCount: { fontSize: 12, fontWeight: "500", color: "rgba(255,255,255,0.75)" },
+  endBox: { alignItems: "center", paddingVertical: 20 },
+  endText: { fontSize: 12, color: "#9ca3af", fontStyle: "italic" },
+
   centerBox: { alignItems: "center", paddingVertical: 48, gap: 12 },
   loadingText: { fontSize: 13, color: C.muted },
   empty: { alignItems: "center", paddingVertical: 48 },

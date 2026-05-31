@@ -74,7 +74,7 @@
     "profile": {
         "agriUser": "Krishidas User",
         "switchMachine": "Switch to Machine Seller Mode",
-        "switchLabour": "Switch to Labor Provider Mode",
+        "switchLabour": "Switch to Labour Provider Mode",
         "expenses": "My Expenses & Earnings",
         "bookings": "My Bookings",
         "editProfile": "Edit Profile",
@@ -363,6 +363,6 @@
         "noBookingsText": "Check back soon for new job requests."
     },
     "labourDashboard": {
-        "title": "Labor Provider Dashboard"
+        "title": "Labour Provider Dashboard"
     }
 }

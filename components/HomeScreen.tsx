@@ -31,10 +31,10 @@ const C = {
 const QUICK_STATS = [
   {
     labelKey: "home.machinesNearby",
-    value: "24+",
+    value: "Find",
     icon: "hardware-chip-outline",
   },
-  { labelKey: "home.labourAvailable", value: "60+", icon: "people-outline" },
+  { labelKey: "home.labourAvailable", value: "Skilled", icon: "people-outline" },
   { labelKey: "home.villagesCovered", value: "300+", icon: "location-outline" },
 ];
 

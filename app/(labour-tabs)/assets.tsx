@@ -221,7 +221,7 @@ export default function OwnerLaborProvidersScreen() {
       <Text style={s.emptyIcon}>👷</Text>
       <Text style={s.emptyTitle}>No listings yet</Text>
       <Text style={s.emptyText}>
-        Add your first labor provider listing and start receiving bookings from nearby farmers.
+        Add your first labour provider listing and start receiving bookings from nearby farmers.
       </Text>
       <TouchableOpacity
         style={s.emptyBtn}
@@ -240,7 +240,7 @@ export default function OwnerLaborProvidersScreen() {
           <Text style={s.headerBadgeText}>Krishidas • SELLER</Text>
         </View>
         <Text style={s.headerTitle}>Your Listings</Text>
-        <Text style={s.headerSub}>Manage, update or remove your labor provider listings</Text>
+        <Text style={s.headerSub}>Manage, update or remove your labour provider listings</Text>
 
         {/* Summary strip */}
         <View style={s.strip}>

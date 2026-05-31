@@ -13,7 +13,7 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "We need your location to show nearby machines and labor providers.",
+        "NSLocationWhenInUseUsageDescription": "We need your location to show nearby machines and labour providers.",
         "NSCameraUsageDescription": "Camera access is needed to upload machine images.",
         "NSPhotoLibraryUsageDescription": "Photo library access is needed to upload images."
       }
@@ -35,7 +35,7 @@
 
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon.png"
     },
 
 "plugins": [
@@ -55,7 +55,7 @@
   [
     "expo-location",
     {
-      "locationWhenInUsePermission": "Allow Krishidas to access your location to show nearby machines and labor."
+      "locationWhenInUsePermission": "Allow Krishidas to access your location to show nearby machines and labour."
     }
   ]
 ],

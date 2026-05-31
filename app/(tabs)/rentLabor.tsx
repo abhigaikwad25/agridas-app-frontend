@@ -99,7 +99,7 @@ export default function SearchLabourScreen() {
       });
       setProviders(res.data || []);
     } catch (e) {
-      console.log("Error fetching labor providers:", e);
+      console.log("Error fetching labour providers:", e);
       setProviders([]);
     } finally {
       setLoading(false);
@@ -200,14 +200,15 @@ export default function SearchLabourScreen() {
         <View style={s.heroBadge}>
           <Text style={s.heroBadgeText}>Krishidas • BUYER</Text>
         </View>
-        <Text style={s.heroTitle}>Find Labor{"\n"}Providers</Text>
+        <Text style={s.heroTitle}>Find Labour{"\n"}Providers</Text>
         <Text style={s.heroSub}>Trusted farm workers near your location 👨‍🌾</Text>
 
         <View style={s.statsStrip}>
           {[
-            { num: "500+", label: "Workers"  },
-            { num: "120+", label: "Villages" },
-            { num: "4.8★", label: "Rating"   },
+            // { num: "500+", label: "Workers"  },
+             { num: "Fast", label: "Labour Search" },
+            { num: "300+", label: "Villages Covered" },
+            // { num: "4.8★", label: "Rating"   },
           ].map((st, i) => (
             <React.Fragment key={i}>
               {i > 0 && <View style={s.statSep} />}
@@ -243,7 +244,7 @@ export default function SearchLabourScreen() {
       {loading ? (
         <View style={s.loadingWrap}>
           <ActivityIndicator size="large" color={C.primary} />
-          <Text style={s.loadingText}>Finding labor providers…</Text>
+          <Text style={s.loadingText}>Finding labour providers…</Text>
         </View>
       ) : (
         <FlatList
@@ -265,7 +266,7 @@ export default function SearchLabourScreen() {
               <View style={s.empty}>
                 <Text style={s.emptyIcon}>📍</Text>
                 <Text style={s.emptyTitle}>Select a location</Text>
-                <Text style={s.emptyText}>Choose a taluka above to see available labor providers.</Text>
+                <Text style={s.emptyText}>Choose a taluka above to see available labour providers.</Text>
               </View>
             )
           }

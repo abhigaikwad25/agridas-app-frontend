@@ -66,9 +66,8 @@ export default function LabourHome() {
 
         <View style={s.statsStrip}>
           {[
-            { num: "3500+", labelKey: "labourHome.workersRegistered" },
-            { num: "12K+", labelKey: "labourHome.jobsCompleted" },
-            { num: "500+", labelKey: "labourHome.villagesCovered" },
+            { num: "Multiple", labelKey: "labourHome.workersRegistered" },
+            { num: "300+", labelKey: "labourHome.villagesCovered" },
           ].map((st, i) => (
             <View key={i} style={{ flex: 1, flexDirection: "row" }}>
               {i > 0 && <View style={s.statDivider} />}
