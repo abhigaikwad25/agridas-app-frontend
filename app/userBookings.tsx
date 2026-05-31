@@ -269,7 +269,7 @@ export default function UserBookingsScreen() {
             </View>
             <View style={[s.statusPill, { backgroundColor: C.amberLight }]}>
               <Ionicons name="hourglass-outline" size={11} color={C.amber} />
-              <Text style={[s.statusText, { color: C.amber }]}>Pending</Text>
+              <Text style={[s.statusText, { color: C.amber }]}>{t("bookingsPage.pending")}</Text>
             </View>
           </View>
 
@@ -404,10 +404,10 @@ export default function UserBookingsScreen() {
                   size={16}
                   color={C.blue}
                 />
-                <Text style={s.otpSectionTitle}>Start OTP</Text>
+                <Text style={s.otpSectionTitle}>{t("bookingsPage.startOTP")}</Text>
               </View>
               <Text style={s.otpSectionSub}>
-                {item.startOtp ? item.startOtp : "Pending verification"}
+                {item.startOtp ? item.startOtp : t("bookingsPage.pendingVerification")}
               </Text>
             </View>
 
@@ -419,10 +419,10 @@ export default function UserBookingsScreen() {
                     size={16}
                     color={C.green}
                   />
-                  <Text style={s.otpSectionTitle}>End OTP</Text>
+                  <Text style={s.otpSectionTitle}>{t("bookingsPage.endOTP")}</Text>
                 </View>
                 <Text style={s.otpSectionSub}>
-                  {item.endOtp ? item.endOtp : "Pending completion"}
+                  {item.endOtp ? item.endOtp : t("bookingsPage.pendingCompletion")}
                 </Text>
               </View>
             )}
@@ -430,7 +430,7 @@ export default function UserBookingsScreen() {
 
           <View style={s.amountRowSingle}>
             <Ionicons name="cash-outline" size={13} color={C.muted} />
-            <Text style={s.amountRowLabel}>Service amount</Text>
+            <Text style={s.amountRowLabel}>{t("bookingsPage.serviceAmount")}</Text>
             <Text style={s.amountRowValue}>
               ₹{item.amount.toLocaleString("en-IN")}
             </Text>
@@ -457,7 +457,7 @@ export default function UserBookingsScreen() {
             </View>
             <View style={[s.statusPill, { backgroundColor: C.redLight }]}>
               <Ionicons name="close-circle" size={11} color={C.red} />
-              <Text style={[s.statusText, { color: C.red }]}>Rejected</Text>
+              <Text style={[s.statusText, { color: C.red }]}>{t("bookingsPage.rejected")}</Text>
             </View>
           </View>
 
@@ -466,7 +466,7 @@ export default function UserBookingsScreen() {
 
           <View style={s.amountRowSingle}>
             <Ionicons name="cash-outline" size={13} color={C.muted} />
-            <Text style={s.amountRowLabel}>Amount</Text>
+            <Text style={s.amountRowLabel}>{t("bookingsPage.amount")}</Text>
             <Text style={[s.amountRowValue, { color: C.red }]}>
               ₹{item.amount.toLocaleString("en-IN")}
             </Text>
@@ -481,7 +481,7 @@ export default function UserBookingsScreen() {
     const color = isCompleted ? C.green : C.muted;
     const bgColor = isCompleted ? C.greenLight : "#F0EDEB";
     const icon: any = isCompleted ? "checkmark-circle" : "ban-outline";
-    const label = isCompleted ? "Completed" : "Cancelled";
+    const label = isCompleted ? t("bookingsPage.completed") : t("bookingsPage.cancelled");
 
     return (
       <View style={[s.bookingCard, { opacity: isCompleted ? 1 : 0.8 }]}>
@@ -513,7 +513,7 @@ export default function UserBookingsScreen() {
           <View style={s.amountRowSingle}>
             <Ionicons name="cash-outline" size={13} color={C.muted} />
             <Text style={s.amountRowLabel}>
-              {isCompleted ? "Earned" : "Amount"}
+              {isCompleted ? "Earned" : t("bookingsPage.amount")}
             </Text>
             <Text style={[s.amountRowValue, { color }]}>
               ₹{item.amount.toLocaleString("en-IN")}
@@ -535,7 +535,7 @@ export default function UserBookingsScreen() {
       return (
         <View style={s.centerBox}>
           <ActivityIndicator color={C.primary} size="large" />
-          <Text style={s.loadingText}>Fetching bookings...</Text>
+          <Text style={s.loadingText}>{t("bookingsPage.fetchingBookings")}</Text>
         </View>
       );
     }
@@ -544,7 +544,7 @@ export default function UserBookingsScreen() {
       return (
         <View style={s.empty}>
           <Text style={s.emptyIcon}>⚠️</Text>
-          <Text style={s.emptyTitle}>Something went wrong</Text>
+          <Text style={s.emptyTitle}>{t("bookingsPage.somethingWentWrong")}</Text>
           <Text style={s.emptyText}>{error}</Text>
           <TouchableOpacity
             onPress={() => fetchBookings(tab, emptyCursors(), false)}
@@ -560,8 +560,7 @@ export default function UserBookingsScreen() {
       return (
         <View style={s.empty}>
           <Text style={s.emptyIcon}>📋</Text>
-          <Text style={s.emptyTitle}>No {activeTab.label}</Text>
-          <Text style={s.emptyText}>No bookings found here yet.</Text>
+          <Text style={s.emptyTitle}>{t("bookingsPage.noBookingsFoundHere")}</Text>
         </View>
       );
     }

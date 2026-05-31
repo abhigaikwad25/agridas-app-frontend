@@ -1,19 +1,20 @@
 import api from "@/app/utils/axiosinstance";
+import { BASE_URL } from "@/constants/api";
+import { useLang } from "@/contexts/LanguageContext";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
-import { BASE_URL } from "@/constants/api";
 import {
-    ActivityIndicator,
-    Dimensions,
-    Linking,
-    ScrollView,
-    StatusBar,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Dimensions,
+  Linking,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -70,6 +71,7 @@ function StatCard({ icon, label, value }: any) {
 export default function LaborProviderDetailsScreen() {
   const { machineId } = useLocalSearchParams<{ machineId: string }>();
   const router = useRouter();
+  const { t } = useLang();
 
   const [provider, setProvider] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -99,7 +101,7 @@ export default function LaborProviderDetailsScreen() {
     return (
       <View style={s.loading}>
         <ActivityIndicator size="large" color={C.primary} />
-        <Text style={s.loadingText}>Loading provider...</Text>
+        <Text style={s.loadingText}>{t("detailsPage.loadingProvider")}</Text>
       </View>
     );
   }
@@ -117,9 +119,9 @@ export default function LaborProviderDetailsScreen() {
 
       {/* HERO */}
       <View style={s.hero}>
-        <Text style={s.heroTitle}>Labour Provider</Text>
+        <Text style={s.heroTitle}>{t("detailsPage.labourProvider")}</Text>
         <Text style={s.heroSub}>
-          {provider.isActive ? "Available Now" : "Currently Busy"}
+          {provider.isActive ? t("detailsPage.availableNow") : t("detailsPage.currentlyBusy")}
         </Text>
       </View>
 
@@ -131,7 +133,7 @@ export default function LaborProviderDetailsScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         {/* TITLE */}
         <View style={s.card}>
-          <Text style={s.title}>Labour Service Provider</Text>
+          <Text style={s.title}>{t("detailsPage.labourServiceProvider")}</Text>
          <Text style={s.location}>
   {`${provider.taluka}, ${provider.district}, ${provider.state}`}
 </Text>
@@ -157,13 +159,13 @@ export default function LaborProviderDetailsScreen() {
             }
           >
             <Ionicons name="map" size={16} color="#fff" />
-            <Text style={s.mapText}>View on Google Maps</Text>
+            <Text style={s.mapText}>{t("detailsPage.viewOnGoogleMaps")}</Text>
           </TouchableOpacity>
         )}
 
         {/* SKILLS */}
         <View style={s.card}>
-          <Text style={s.sectionTitle}>Skills</Text>
+          <Text style={s.sectionTitle}>{t("detailsPage.skills")}</Text>
           <View style={s.skillWrap}>
             {provider.skills?.map((s1: string, i: number) => (
               <SkillPill key={i} skill={s1} />
@@ -173,7 +175,7 @@ export default function LaborProviderDetailsScreen() {
 
         {/* DETAILS */}
         <View style={s.card}>
-          <Text style={s.sectionTitle}>Details</Text>
+          <Text style={s.sectionTitle}>{t("detailsPage.details")}</Text>
 
           <Text style={s.info}>📞 {provider.ownerPhoneno}</Text>
           <Text style={s.info}>📍 {provider.pincode}</Text>
@@ -185,7 +187,7 @@ export default function LaborProviderDetailsScreen() {
         {/* ABOUT */}
         {provider.description ? (
           <View style={s.card}>
-            <Text style={s.sectionTitle}>About</Text>
+            <Text style={s.sectionTitle}>{t("detailsPage.about")}</Text>
             <Text style={s.desc}>{provider.description}</Text>
           </View>
         ) : null}
@@ -194,8 +196,8 @@ export default function LaborProviderDetailsScreen() {
       {/* BOTTOM BAR */}
       <View style={s.bottomBar}>
         <View>
-          <Text style={s.priceLabel}>Starting from</Text>
-          <Text style={s.price}>₹{provider.pricePerDay} / day</Text>
+          <Text style={s.priceLabel}>{t("detailsPage.startingFrom")}</Text>
+          <Text style={s.price}>₹{provider.pricePerDay} {t("detailsPage.perDay")}</Text>
         </View>
 
         <TouchableOpacity
